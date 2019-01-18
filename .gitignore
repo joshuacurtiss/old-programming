@@ -1,0 +1,8 @@
+# Compiled Binary
+*.exe
+*.tpu
+
+# Other Files to Ignore
+*.dat
+*.ms
+*.frk
