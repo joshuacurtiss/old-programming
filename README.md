@@ -12,6 +12,8 @@ I have old floppies with a bunch of BASIC programs. Restoration of the disks has
 
 ## Pascal
 
+See the [Pascal notes](Pascal/README.md).
+
 In sophomore through senior grades in high school, I took programming classes that featured [Pascal](https://en.wikipedia.org/wiki/Pascal_(programming_language)) on [PS/2](https://en.wikipedia.org/wiki/IBM_Personal_System/2) computers using [Turbo Pascal](https://en.wikipedia.org/wiki/Turbo_Pascal). 
 
 SourceForge makes it easy to start using Turbo Pascal by providing a [Turbo Pascal (with DosBox)](https://sourceforge.net/projects/turbopascal-wdb/) download. Check out these retro projects today.
