@@ -2,6 +2,12 @@
 *.exe
 *.tpu
 
+# IDEs
+TC
+tc.bat
+TP
+tp.bat
+
 # Other Files to Ignore
 *.dat
 *.ms
