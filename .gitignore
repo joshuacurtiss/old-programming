@@ -9,6 +9,8 @@ TP
 tp.bat
 
 # Other Files to Ignore
+*.$$$
+*.bak
 *.dat
 *.ms
 *.frk
