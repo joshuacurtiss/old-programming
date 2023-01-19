@@ -13,4 +13,5 @@ tp.bat
 *.bak
 *.dat
 *.ms
+*.o
 *.frk
