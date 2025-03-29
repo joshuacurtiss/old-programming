@@ -1,0 +1,18 @@
+{
+  "dictionaryDefinitions": [
+    {
+      "name": "project-dictionary",
+      "path": "./project-dictionary.txt",
+      "addWords": true
+    }
+  ],
+  "dictionaries": ["project-dictionary"],
+  "enableFiletypes": ["*"],
+  "useGitignore": true,
+  "ignorePaths": [
+    "TC",
+    "TCINST",
+    "TP",
+    "TPINST"
+  ]
+}

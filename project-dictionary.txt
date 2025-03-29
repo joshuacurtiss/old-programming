@@ -1,0 +1,16 @@
+abandonware
+Applesoft
+Borland
+Clrscr
+COMSPEC
+dosbox
+imgmount
+Readkey
+Readln
+TC
+TCINST
+TP
+TPINST
+Whazzap
+Writeln
+yorn
