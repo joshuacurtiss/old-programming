@@ -1,0 +1,18 @@
+# Compiled Binary
+*.exe
+*.obj
+*.tpu
+
+# IDEs
+/c/TC
+/TCINST
+/pas/TP
+/TPINST
+
+# Other Files to Ignore
+TURBO.DSK
+*.$$$
+*.bak
+*.dat
+*.ms
+*.frk
