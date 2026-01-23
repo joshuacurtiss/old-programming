@@ -1,5 +1,16 @@
 #!/bin/bash
 
+export bold=
+export rmul=
+export ul=
+export norm=
+if command -v tput > /dev/null; then
+  bold=$(tput bold)
+  norm=$(tput sgr0)
+  rmul=$(tput rmul)
+  ul=$(tput smul)
+fi
+
 # Checks if dosbox-staging exists on the system, and offers to install it if not.
 check_dosbox() {
   if ! command -v dosbox-staging > /dev/null; then
