@@ -7,6 +7,8 @@ dosbox
 imgmount
 Readkey
 Readln
+rmul
+smul
 TC
 TCINST
 TP
