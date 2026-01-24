@@ -75,14 +75,15 @@ Begin
 	ClearDevice ;
   For I:=0 to 15 do
   	Begin
-		  SetColor( i ) ;
-		  Rectangle( 1, 1, 10, 10 ) ;
-		  FloodFill( 3, 3, i ) ;
-		  SetColor( Black ) ;
-		  Rectangle( 1, 1, 10, 10 ) ;
-		  Size := ImageSize( 1, 1, 10, 10 ) ;
+		  SetColor( White ) ;
+		  Rectangle( 50, 50, 100, 100 ) ;
+			SetFillStyle(SolidFill, I) ;
+		  FloodFill( 60, 60, White ) ;
+		  SetColor( White ) ;
+		  Rectangle( 50, 50, 100, 100 ) ;
+		  Size := ImageSize( 50, 50, 100, 100 ) ;
 		  GetMem( Box[i], Size ) ; { Get memory from heap }
-		  GetImage( 1, 1, 10, 10, Box[i]^ ) ;
+		  GetImage( 50, 50, 100, 100, Box[i]^ ) ;
 		  ClearDevice ;
     end ; {For to do}
   SetColor( White ) ;
@@ -100,14 +101,15 @@ Begin
   Str( x, xs ) ;
   Str( y, ys ) ;
  	OutText( 'Max. Res: '+xs+ ' x '+ ys + '. ' ) ;
-  X:=1 ;
-  y:=50 ;
+  x:=75 ;
+  y:=30 ;
   I:=-1 ;
   While ( x < 630 ) and ( I <= 16 ) do
   	Begin
     	Inc( i ) ;
-    	Putimage( x, y, Box[ i ]^, NormalPut ) ;
-      Inc( x, 12 ) ;
+    	PutImage( x, y, Box[ i ]^, NormalPut ) ;
+      Inc( x, 25 ) ;
+      Inc( y, 25 ) ;
     end ;
   Readln ;
   CloseGraph ;
