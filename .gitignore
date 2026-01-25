@@ -14,5 +14,10 @@ TURBO.DSK
 *.$$$
 *.bak
 *.dat
+*.log
 *.ms
 *.frk
+
+# Folders to ignore
+incomplete
+todo
