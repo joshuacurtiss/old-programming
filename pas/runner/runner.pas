@@ -13,13 +13,21 @@ Type
 		Status:Boolean ;
 	end ;
 
+	ShortCut = Record
+		Key:String ;
+		Command:String ;
+	end ;
+
 Const NumOfWins = 6   ;  OptMax		 = 15  ;
 			UpArrow   = #72 ;  DownArrow  = #80 ;
 			LeftArrow = #75 ;  RightArrow = #77 ; {Handy-dandy constants.}
 			PgUp      = #73 ;  PgDn       = #81 ;
 			Del       = #83 ;  Tab        = 9   ;
+			CutMax		= 3   ;  Nothing		= '(Empty)' ;
+			ESC				= #27 ;  AfterDarkTime = 1 {Minutes} ;
 
 Var Scrn:Array[ 1..NumOfWins ] of Win ;
+		KeyShort:Array[ 1..CutMax ] of ShortCut ;
 		Key:Char ;
 		UserType, PassWord, Command:String ;
     MenuOpt:Array[ 1..OptMax ] of String ;
@@ -200,6 +208,15 @@ Begin
 		end ;
 end ; {BorderMohn Proc}   {Not Perfect}
 
+Procedure SitAround ;
+
+Var Bert, Ernie:Integer ;
+
+Begin
+	Bert := 23 ;
+	Ernie := Bert ;
+	Inc( Bert, 10 ) ;
+end ;
 
 Procedure WinUp( Left, Top, Right, Bottom:Byte ) ;   {Draw & Make a win}
 
@@ -446,67 +463,190 @@ Begin
       Read( f, MenuOpt[ i ] ) ;
       If IOResult <> 0 then
       	Begin
-        	MenuOpt[ i ] := '(Empty)' ;
-          Seek( f, i-1 ) ;
-          Write( f, MenuOpt[ i ] ) ;
-        end ;
-    end ;
-  For I:=OptMax+1 to Optmax + OptMax do
-   	Begin
-      Seek( f, I - 1 ) ;
-      Read( f, WhatToDo[ i ] ) ;
-      If IOResult <> 0 then
-      	Begin
-        	WhatToDo[ I ] := '!' ;
-          Seek( f, I - 1 ) ;
-          Write( f, WhatToDo[ I ] ) ;
-        end ;
-   	end ;
-  Seek( f, OptMax + OptMax ) ;
-  Read( f, PassWord ) ;
-  If IOResult <> 0 then
-  	Begin
-    	PassWord := 'BALANCE' ;
-      For I:=1 to Length( PassWord ) do
-      	PassWord[ i ] := Chr( Ord( PassWord[i] ) + 2 ) ;
+					MenuOpt[ i ] := Nothing ;
+					Seek( f, i-1 ) ;
+					Write( f, MenuOpt[ i ] ) ;
+				end ;
+		end ;
+	For I:=OptMax+1 to Optmax + OptMax do
+		Begin
+			Seek( f, I - 1 ) ;
+			Read( f, WhatToDo[ i ] ) ;
+			If IOResult <> 0 then
+				Begin
+					WhatToDo[ I ] := '!' ;
+					Seek( f, I - 1 ) ;
+					Write( f, WhatToDo[ I ] ) ;
+				end ;
+		end ;
+	Seek( f, OptMax + OptMax ) ;
+	Read( f, PassWord ) ;
+	If IOResult <> 0 then
+		Begin
+			Password := 'BALANCE' ;
+			For I:=1 to Length( Password ) do
+				Password[ i ] := Chr( Ord( Password[i] ) + 2 ) ;
       Seek( f, OptMax + OptMax ) ;
       Write( f, Password ) ;
-    end ;
-  Close( f ) ;
+		end ;
+	For I:=1 to CutMax do
+		Begin
+			Seek( F, OptMax + OptMax + I ) ;
+			Read( F, KeyShort[ I ].Key ) ;
+			If IOResult <> 0 then
+				Begin
+					Case I of
+						1:KeyShort[ i ].Key := 'P' ;
+						2:KeyShort[ i ].Key := 'T' ;
+						3:KeyShort[ i ].Key := Nothing ;
+					end ;
+					Seek( f, OptMax + OptMax + I ) ;
+					Write( f, KeyShort[ i ].Key ) ;
+				end ;
+		end ;
+	For I:=1 to CutMax do
+		Begin
+			Seek( f, OptMax + OptMax + CutMax + I ) ;
+			Read( f, KeyShort[ i ].Command ) ;
+			If IOResult <> 0 then
+				Begin
+					Case I of
+						1:KeyShort[ i ].Command := 'C:\Batches\TP.BAT'   ;
+						2:KeyShort[ i ].Command := 'C:\Batches\TMSS.BAT' ;
+						3:KeyShort[ i ].Command := Nothing ;
+					end ;
+					Seek( f, OptMax + OptMax + CutMax + I ) ;
+					Write( f, KeyShort[ i ].Command ) ;
+				end ;
+		end ;
+	Close( f ) ;
 	{$I+}
 	For I:=1 to Length( PassWord ) do
 		PassWord[i] := Chr( Ord( PassWord[i] ) - 2 ) ;
 end ; {PROC}
+
+Function AfterDark:Char ;
+
+Var Change:Array[ 1..80, 1..25 ] of Boolean ;
+		DChange, mj, pip:Byte ;
+		c, Bob:Char ;
+		TimeToGo:Boolean ;
+
+Begin
+	TimeToGo := False ;
+	Randomize ;
+	Repeat
+		DChange := Random(50) ;
+		For MJ := 1 to 80 do
+			For Pip := 1 to 25 do
+				Change[ mj, pip ] := False ;
+		MJ := 0 ; Pip := 0 ;
+		Repeat
+			Inc( mj ) ;
+			Repeat
+				Inc( Pip ) ;
+				C:=GetChar( mj, pip ) ;
+				If ( Ord(c) > 7+DChange ) and ( Ord(c) < 256-DChange ) then
+					Begin
+						Change[ mj, pip ] := True ;
+						WriteChar( mj, pip, Chr( Ord(c)+DChange ) ) ;
+					end ;
+				If Keypressed then
+					Begin
+						Bob:=Readkey ;
+						TimeToGo:=True ;
+					end ;
+			Until ( pip = 25 ) or timetogo ;
+			If Keypressed then
+				Begin
+					Bob:=Readkey ;
+					TimeToGo:=True ;
+				end ;
+			Pip := 0 ;
+			Inc( mj ) ;
+		Until ( mj > 80 ) or timetogo ;
+		MJ := 0 ; Pip := 0 ;
+		Repeat
+			Inc( mj ) ;
+			Repeat
+				Inc( Pip ) ;
+				If Change[ mj, pip ] then
+					Begin
+						WriteChar( mj, pip, Chr( Ord(c)-DChange ) ) ;
+					end ;
+			Until ( pip = 25 ) or timetogo ;
+			Pip := 0 ;
+			Inc( mj ) ;
+		Until ( mj > 80 ) or timetogo ;
+	Until TimeToGo ;
+end ;
+
+
+Function WaitForKeypress:Char ;
+
+Var h1, h2, m1, m2, s1, s2, Hundredths:Word ;
+		ItsTime:Boolean ;
+
+Begin
+	GetTime( h1, m1, s1, hundredths ) ;
+	Repeat
+		GetTime( h2, m2, s2, hundredths ) ;
+		If ( (h2=1) and (h1=12) ) or ( h2 > h1 ) then Inc( m2, 60 ) ;
+		s2 := ( m2 - m1 ) * 60 ;
+		If ( s2 - s1 > AfterDarkTime * 60 ) or Keypressed then ItsTime := true ;
+	Until ItsTime ;
+	If s2 - s1 > AfterDarkTime * 60 then WaitForKeypress := AfterDark
+	else WaitForKeypress := Readkey ;
+end ;
+
+
+Procedure Execute ;
+
+Begin
+	CloseAllWins ;
+	If DoCommand then
+  	Begin
+      If 1 = 1 then
+      	Begin
+        	I:=Length( Command ) + 1 ;
+        	Repeat
+          	Dec( i ) ;
+          Until ( Command[ i+1 ] = '\' ) or ( I<0 ) ;
+          If I<0 then Command := 'cd'
+          else
+            ChDir( Copy( Command, 1, i ) ) ;
+        end ;
+			Command := '/C ' + Command;
+			DoCommand := False ;
+		  SwapVectors;
+			Exec(GetEnv('COMSPEC'), Command);
+			SwapVectors;
+		end ;
+end ; {Execute}
+
 
 Begin {$M 8192, 0, 0}
 	CursPos := WhereY + 2 ;
   If CursPos > 25 then CursPos:=25 ;
   DoCommand := False ;
 	Initwins ;
+	GetStuffs ;
 	If KeyPressed then
     begin
       Key:=Readkey ;
-      Case UpCase( Key ) of
-	      'P':
-	      	begin
-          	DoCommand := True ;
-				  	Command := 'C:\Batches\TP.BAT' ;
-	        end ;
-        'C':
-        	Begin
-          	DoCommand := True ;
-            Command := 'C:\Batches\TC.BAT' ;
-          end ;
-	      'T':
-	      	Begin
-          	DoCommand := True ;
-	          Command:= 'C:\Batches\TMSS.BAT' ;
-	        end ;
-      end ; {Case [P] [T]}
-    end {If KeyPressed}
-  else
-  	Begin
-      GetStuffs ;
+			I:=0 ;
+			Repeat
+				Inc( I ) ;
+				If ( Upcase(Key) = Upcase(KeyShort[i].Key[1]) ) and
+					 (KeyShort[i].Key<>Nothing) then
+					Begin
+						DoCommand := True ;
+						Command := KeyShort[ i ].Command ;
+					end ;
+			Until ( DoCommand ) or ( I = CutMax ) ;
+		end {If KeyPressed}
+	else
+		Repeat
       Y:=0 ;
       For I:=1 to OptMax do If MenuOpt[ i ] <> '(Empty)' then Inc( Y ) ;
       If Y=0 then
@@ -521,14 +661,12 @@ Begin {$M 8192, 0, 0}
       WriteStr( 29, 3, 'Startup Options:' ) ;
       Delta:=4 ;
       For I:=1 to Y do
-      	Begin
-					If MenuOpt[i]<>'(Empty)' then WriteStr(22,I+Delta,MenuOpt[i]);
-				end ;
-      Opt := 1 ;
+				If MenuOpt[i] <> Nothing then WriteStr( 22,I+Delta,MenuOpt[i] ) ;
+			Opt := 1 ;
       Repeat
-      	HiLite( 22, Opt+4, Blue, 32 ) ;
-        Key:=Readkey ;
-        If Key=#0 then Key:=Readkey ;
+				HiLite( 22, Opt+4, Blue, 32 ) ;
+				Key := WaitForKeypress ;
+				If Key=#0 then Key:=Readkey ;
         If (Key=UpArrow) or (Key=DownArrow) or (Key=PgUp) or (Key=PgDn) then
         	HiLite( 22, Opt+4, Black, 32 ) ;
         Case Key of
@@ -536,7 +674,8 @@ Begin {$M 8192, 0, 0}
           DownArrow:Inc( Opt ) ;
           PgDn:Inc( Opt, 5 ) ;
           PgUp:Dec( Opt, 5 ) ;
-          #25 {Alt-P}:
+					{#98:MovinWindoze ;}
+					#25 {Alt-P}:
           	Begin
               WinUp( 45, 8, 77, 14 ) ;
               WriteStr( 47, 10, 'Enter Old Password.' ) ;
@@ -655,26 +794,12 @@ Begin {$M 8192, 0, 0}
 		          Command:=Copy( Command, 5, y-4 ) ;
 		          DoCommand:=True ;
 		        end ;
-        end ;
-    end ; {If no key if pressed}
+				end ;
+			Execute ;
+		Until ( Copy( Command, 1, 5 ) = '!EXIT' ) or ( Key = ESC ) ; {If no key if pressed}
+	WinUp( 10, 8, 38, 12 ) ;
+  WriteStr( 12, 10, 'Thanks for using Runner!' ) ;
+	While NOT Keypressed do SitAround ;
 	CloseAllWins ;
-	If DoCommand then
-  	Begin
-      If 1 = 1 then
-      	Begin
-        	I:=Length( Command ) + 1 ;
-        	Repeat
-          	Dec( i ) ;
-          Until ( Command[ i+1 ] = '\' ) or ( I<0 ) ;
-          If I<0 then Command := 'cd'
-          else
-            ChDir( Copy( Command, 1, i ) ) ;
-        end ;
-	    Command := '/C ' + Command;
-		  SwapVectors;
-			Exec(GetEnv('COMSPEC'), Command);
-			SwapVectors;
-		end ;
-  CloseAllWins ;
 { GotoXY( 1, CursPos ) ;}
 end.
