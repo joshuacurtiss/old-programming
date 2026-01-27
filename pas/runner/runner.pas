@@ -22,9 +22,19 @@ Const NumOfWins = 6   ;  OptMax		 = 15  ;
 			CutMax		= 4   ;  Nothing		= '(Empty)' ;
 			ESC				= #27 ;  AfterDarkTime = 3 {Minutes} ;
 
+			Message : Array[ 1..8 ] of String =
+      					(	'Life is juicy.',
+                	'''Tastes like chicken.''',
+               		'Better check your hard drive for viruses.',
+                	'This program made for the Oasis of Joy.',
+                	'I''m drunk but I''m sober...',
+                	'Always remember: Three rights make a left.',
+                	'Bill Gates: ''640k is enough for anyone.''',
+                	'Mr. Pozzi: The Man, the Myth, the Legend.'	) ;
+
 Var KeyShort:Array[ 1..CutMax ] of ShortCut ;
 		Key:Char ;
-		UserType, PassWord, Command:String ;
+		UserType, PassWord, Command, WhereDaUserBe:String ;
     MenuOpt:Array[ 1..OptMax ] of String ;
     WhatToDo:Array[ OptMax+1 .. OptMax*2 ] of String ;
     f:File of String ;
@@ -593,6 +603,7 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
 	CursPos := WhereY + 2 ;
   If CursPos > 25 then CursPos:=25 ;
   DoCommand := False ;
+  GetDir( 0 {Current Drive}, WhereDaUserBe ) ;
 	Initwins ; {Necessary}
 	GetStuffs ;{Get Prefs}
 	If KeyPressed then
@@ -698,7 +709,15 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
                   WinDown ;
                 end ;
             end ; {IF Alt-P}
-          #67 {F9}:RequirePass ;
+          #67 {F9}:RequirePass ; {Edit Menu Key}
+          #60, #62, #64 {F2, F4, F6}:
+          	Begin
+            	Randomize ;
+              If ( I < 1 ) or ( I > 7 ) then
+								I := Random( 7 ) ;
+              Inc( I ) ;
+							FYI( Message[ i ] ) ;
+            end ;
           #13:
 						Begin
 							HiLite( 22, Opt+4, Black, 32 ) ; {They finally made a choice}
@@ -737,9 +756,14 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
     					{Beauty of Runner: Keeps doing this (Even after a program was}
 							{ran) Over and over. Once you quit a program, up runner comes.}
 							{It won't go away until you ASK it to.}
-
+  {$I-}
+  	ChDir( WhereDaUserBe ) ;
+  {$I+}
 	WinUp( 10, 8, 38, 12 ) ;
   WriteStr( 12, 10, 'Thanks for using Runner!' ) ;
 	Command := WaitForKeypress ; {Press a key to finally leave. If they don't,}
  	CloseAllWins ;							 {screen saver will come up in so many minutes!}
+ 	GotoXY( 1, CursPos ) ;
+  If IOResult <> 0 then
+    Writeln( 'Crap, where were we anyway???' ) ;
 end.
