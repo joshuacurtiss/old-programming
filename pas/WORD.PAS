@@ -16,6 +16,90 @@ Type	Doc = Record
 
 Var CurrentDoc:DOC ;
 
+Function GetCharAttrib (x, y:Byte):Byte;  {Used for Windows Procs}
+
+Begin
+	GetCharAttrib:=( memw[$B800:2* ((x-1) + (y - 1) * 80)] ) Div 256 ;
+End;
+
+Function Readln( LimLeft, y, Len, BackCol, CursCol:Integer; DoTab:Boolean ):String ;
+
+Var LimRight, X:Integer ;       {When inputting just one line}
+		Key:Char ;
+    WhatDeyzSayin:String ;
+    i:Byte ;
+
+Begin
+	HiLite( LimLeft, y, BackCol, Len ) ;
+  LimRight:=LimLeft+Len-1 ;
+  X := LimLeft ;
+  Repeat
+		Key:=' ' ;
+		HiLite( x, y, CursCol, 1 ) ;         {Hilite Cursor}
+		While keypressed do
+			begin
+				Key := ReadKey ;
+				HiLite( x, y, BackCol, 1 ) ;
+        If Key = #0 then
+					begin
+						Key := Readkey ;
+		        Case KEY of
+		          UpArrow, DownArrow, #27: ;
+							Del: {Special Delete}
+								begin
+									If X = LimRight then
+										WriteChar( LimRight, y, ' ' )
+									else
+										Begin
+											For I:= x to ( LimRight-1 ) do
+												WriteChar( i, y, GetChar( i+1, y ) ) ;
+											WriteChar( LimRight, y, ' ' ) ;
+										end ;
+								end ; {Spec. Del}
+							#75: {LeftArrow}
+								Begin
+									Dec( x ) ;
+									If X < LimLeft then X := LimLeft ;
+								end ;
+							#77: {RightArrow}
+								Begin
+									Inc( x ) ;
+									If X > LimRight then X := LimRight
+								end ;
+            end ; {#Case}
+          end {IF #0}
+        else {IF NOT #0}
+          Case Ord( Key ) of
+          	13: ;
+            Tab: If DoTab then Key := #27 ;
+						8: {Backspace}
+							Begin
+								If ( x = LimLeft ) then X := LimLeft
+								else
+									Begin
+										Dec( x ) ;
+										For I := x to ( LimRight - 1 ) do
+											WriteChar( i, y, GetChar( i+1, y ) ) ;
+										WriteChar( LimRight, y, ' ' ) ; {If anywhere else}
+									end ;
+							end  {BackSpace}
+						else
+							Begin
+								For I := LimRight downto ( x + 1 ) do
+									WriteChar( i, y, GetChar( i-1, y ) ) ;
+								WriteChar( x, y, Key ) ;
+								Inc( x ) ;
+								If x > LimRight then x := LimRight ;
+							End ; {ELSE: If you TYPE}
+    	    end ; {CASE}
+      End ; {While KeyPressed}
+  Until ( Key = #13 ) or ( Key = #27 ) ;
+  WhatDeyzSayin := '' ;
+  For I:=LimLeft to LimRight do
+    WhatDeyzSayin := WhatDeyzSayin + GetChar( i, y ) ;
+  Readln := WhatDeyzSayin ;
+end ; {Readln Funct}
+
 Procedure DocInfo ;
 
 Var I:Integer ;
