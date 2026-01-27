@@ -1,6 +1,6 @@
 Program RunnerWithFeaturesUpDaButt ; {With Password and Password Encryption}
 
-Uses crt, Dos ;
+Uses crt, dos, Zakmohn, MenuTool ;
 
 Type
 	Win = Record
@@ -19,15 +19,10 @@ Type
 	end ;
 
 Const NumOfWins = 6   ;  OptMax		 = 15  ;
-			UpArrow   = #72 ;  DownArrow  = #80 ;
-			LeftArrow = #75 ;  RightArrow = #77 ; {Handy-dandy constants.}
-			PgUp      = #73 ;  PgDn       = #81 ;
-			Del       = #83 ;  Tab        = 9   ;
-			CutMax		= 3   ;  Nothing		= '(Empty)' ;
+			CutMax		= 4   ;  Nothing		= '(Empty)' ;
 			ESC				= #27 ;  AfterDarkTime = 3 {Minutes} ;
 
-Var Scrn:Array[ 1..NumOfWins ] of Win ;
-		KeyShort:Array[ 1..CutMax ] of ShortCut ;
+Var KeyShort:Array[ 1..CutMax ] of ShortCut ;
 		Key:Char ;
 		UserType, PassWord, Command:String ;
     MenuOpt:Array[ 1..OptMax ] of String ;
@@ -36,226 +31,6 @@ Var Scrn:Array[ 1..NumOfWins ] of Win ;
     DoCommand:Boolean ;
     Delta, LenOfType, CursPos, y, i, opt:Byte ;
 
-Function GetCharAttrib (x, y:Byte):Byte;  {Used for Windows Procs}
-
-Begin
-	GetCharAttrib:=( memw[$B800:2* ((x-1) + (y - 1) * 80)] ) Div 256 ;
-End;
-
-Procedure WriteChar_a( x, y:Byte ; C:Char ; attr:Byte ); {Used with Windows}
-
-Begin
-	memw[$B800:2* ((x-1) + (y - 1) * 80)] := Ord(C) + attr * 256
-End;
-
-{ Chr(GetCharAttr(x,y) Mod 256) = Character                               }
-{ GetCharAttr(X, Y) Div 256 = Attribute        Background*16 + Textcolor  }
-
-Procedure WriteChar( x, y:Byte ; a:Char ) ; {Fast and easier than GotoXY}
-                                            {and Write equivalents}
-begin
-	mem[ $b800:2 * ( (x-1)+(y-1)*80 ) ] := Ord( a ) ;
-end ;
-
-Function GetChar( x, y:Byte ):Char ;  {Used with Windows Procs}
-
-Begin
-	GetChar:=Char( mem[ $b800:2 * ( (x-1)+(y-1)*80 ) ] ) ;
-end ; {GetChar Function}
-
-Procedure WriteStr( x, y:Byte ; text:string ) ; {Like WriteChar except for}
-                                                {a string}
-Var I:Byte ;
-
-Begin
-	For I := x to Length( text )+x-1 do   {WriteChar one at a time}
-  	WriteChar( i, y, Text[ I-X+1 ] ) ;
-end ; {WriteStr PROC}
-
-Function CurrentWin:Integer ; {Actually outputs the num of windows onscreen.}
-															{Effectively outputs the current window.}
-Var a:Integer ;
-
-Begin
-	A:=NumOfWins + 1 ;
-	Repeat
-		Dec( a ) ;
-	Until ( a=0 ) or ( Scrn[ a ].Status = True ) ; {Check thru wins until 1st}
-	CurrentWin := a ;                              {good one is found.}
-end ; {CurrentWin Function}
-
-Procedure InitWins ; {Must be called for Windows to work properly}
-
-Var i:Integer ;
-
-Begin
-	For i := 1 to NumOfWins do     {Sets all Win conditions to Closed/False}
-		Scrn[ i ].Status := False ;
-end ; {InitWins}
-
-Procedure Hilite( x, linenum, Col, Len:Byte ) ; {Changes background color}
-
-Var A:Byte ;
-
-Begin
-	For A:=1 to len do
-		Mem[ $B800:( (linenum-1)*80+x+a-2 )*2+1 ] := Col*16 + White
-End ; {HiLite Proc}
-
-
-Procedure BorderMohn( Left, Top, Right, Bottom:Byte ; Back, txt:byte ) ;
-
-Var i:Byte ;               {This is used in WinUp Proc. All it does is draw}
-		Edge:Char ;            {a border of the window. It observes surrounding}
-		Side:Boolean ;				 {chars and draws the appropriate piece so that  }
-    att:Byte ;						 {Underlying windows aren't CUT}
-
-Begin
-  Att:=Back*16+txt ;
-	If Left>1 then
-		begin
-			Edge:=GetChar( Left-1, Top ) ;
-			If Edge='Ä' then Side:=TRUE
-				else Side:=False ;
-		end ;                                          {Upperleft corner}
-	If Top>1 then Edge:=GetChar( Left, Top-1 ) ;
-	If Edge='³' then
-		If Side=TRUE then Edge:=Chr( 197 )
-			else Edge:=Chr( 195 )
-		else
-			If Side=true then Edge:=chr( 194 )
-				else Edge:='Ú' ;
-	WriteChar_A( Left, Top, Edge, att ) ;
-	If Left>1 then
-		begin
-			Edge:=GetChar( Left-1, Bottom ) ;
-			If Edge='Ä' then Side:=TRUE
-				else Side:=False ;
-		end ;
-	If Bottom<25 then Edge:=GetChar( Left, Bottom+1 ) ;
-	If Edge='³' then
-		If Side=TRUE then Edge:=Chr( 197 )                  {Lowerleft corner}
-			else Edge:=Chr( 195 )
-		else
-			If Side=true then Edge:=chr( 193 )
-				else Edge:='À' ;
-	WriteChar_A( Left, Bottom, edge, att ) ;
-	If Right<80 then
-		begin
-			Edge:=GetChar(  Right+1, top) ;
-			If Edge='Ä' then Side:=TRUE                {Upper Right corner}
-				else Side:=False ;
-		end ;
-	If Top>1 then Edge:=GetChar( Right, Top-1 ) ;
-	If Edge='³' then
-		If Side=TRUE then Edge:=Chr( 197 )
-			else Edge:=Chr( 180 )
-		else
-			If Side=true then Edge:=chr( 194 )
-				else Edge:='¿' ;
-	WriteChar_A( Right, Top, Edge, att ) ;
-	If Right<80 then
-		begin
-			Edge:=GetChar( Right+1, bottom ) ;
-			If Edge='Ä' then Side:=TRUE                   {Lower Right Corner}
-				else Side:=False ;
-		end ;
-	If Bottom<25 then Edge:=GetChar( Right, Bottom+1 ) ;
-	If Edge='³' then
-		If Side=TRUE then Edge:=Chr( 197 )
-			else Edge:=Chr( 180 )
-		else
-			If Side=true then Edge:=chr( 193 )
-				else Edge:='Ù' ;
-	WriteChar_A( Right, Bottom, edge, att ) ;
-	For i := left+1 to Right-1 do
-		Begin
-			edge:='Ä' ;
-			If top-1 > 0 then
-				begin
-					Edge:=GetChar( i, Top-1 ) ;              {Top}
-					If Edge = '³' then Edge:=Chr( 193 )
-						else Edge:='Ä' ;
-				end ;
-			WriteChar_A( i, Top, edge, att ) ;
-			edge:='Ä' ;
-			If Bottom+1 < 26 then
-				begin
-					Edge:=GetChar( i, Bottom+1 ) ;
-					If Edge = '³' then Edge:=Chr( 194 )      {Bottom}
-						else Edge:='Ä' ;
-				end ;
-			WriteChar_A( i, bottom, edge, att ) ;
-		end ;
-	For i := Top+1 to Bottom-1 do
-		Begin
-			Edge:='³' ;
-			If Left-1 > 0 then
-				begin
-					Edge:=GetChar( Left-1, i ) ;              {Left}
-					If Edge = 'Ä' then Edge:=Chr( 180 )
-						else Edge:='³' ;
-				end ;
-			WriteChar_A( Left, i, Edge, att ) ;
-			Edge:='³' ;
-			If Right+1 < 81 then
-				begin
-					Edge:=GetChar( Right+1, i ) ;              {Right}
-					If Edge = 'Ä' then Edge:=Chr( 195 )
-						else Edge:='³' ;
-				end ;
-			WriteChar_A( Right, i, Edge, att ) ;
-		end ;
-end ; {BorderMohn Proc}   {Not Perfect} {Repetitious. Sorry}
-
-
-Procedure WinUp( Left, Top, Right, Bottom:Byte ) ;   {Draw & Make a win}
-
-Var i, j, WinNum:INTEGER ;
-		Attempt:Boolean ;
-
-Begin
-	WinNum := 0 ;
-	Repeat               {Finds first inactive Win Spot}
-		Inc( WinNum ) ;                                     {In this form, it can}
-		Attempt:=Scrn[ WinNum ].Status ;                    {fill any gaps with a}
-		If Attempt=False then Scrn[ WinNum ].Status:=TRUE ; {win. (Gaps in Scrn) }
-	Until ( Attempt = False ) or ( WinNum = NumOfWins ) ;
-	Scrn[ WinNum ].Top    := Top ;
-	Scrn[ WinNum ].Bottom := Bottom ;
-	Scrn[ WinNum ].Left   := Left ;   {Assign the window's properties}
-	Scrn[ WinNum ].Right  := Right ;
-	For J:=top to bottom do
-		For I:=Left to Right do
-			Begin                     {Make Masks (Store wut was underneath)}
-				Scrn[WinNum].CharMask[ i, j ] := GetChar( i, j ) ;
-        Scrn[WinNum].AttribMask[ i, j ] := GetCharAttrib( i, j ) ;
-      end ;
-	BorderMohn( Left, Top, right, bottom, black, white ) ;    {Border}
-	For j:=top+1 to bottom-1 do
-		For i:=left+1 to right-1 do
-			If (Scrn[WinNum].CharMask[I,J] <> ' ') {Alter screen only if necessary}
-				or (Scrn[WinNum].AttribMask[I,J] <> Black*16+White) then
-				WriteChar_a( i, j, ' ', Black*16+White ) ; {Skip unnecessary spaces}
-end ; {Proc WinUp}
-
-Procedure WinDown ; {Simplified: Closes only front window}
-
-Var i, j, WinNum:INTEGER ;
-
-Begin
-	WinNum := CurrentWin ;   {Find which Win to Close}
-	If WinNum>0 then         {If none open, just exit}
-		With Scrn[ WinNum ] do
-			begin
-				Status:=False ;       {Kill the Win}
-				For J:=Top to Bottom do
-					For I:=Left to Right do
-						If ( CharMask[I,J] <> GetChar( i, j ) ) or
-							( AttribMask[I,J] <> GetCharAttrib( i, j ) ) then
-								Writechar_a( i, j, CharMask[i,j], AttribMask[i,j] ) ;{Erase}
-    	end ;
-end ; {WinDown Proc}
 
 Function WaitForKeypress:Char ; Forward ; {Must have Forward Declaration}
 																					{Since FYI uses it. Talk about l8r}
@@ -296,14 +71,6 @@ Begin
 	WinDown ;
 end ; {FYI Proc}
 
-Procedure CloseAllWins ; {Guess what it does?}
-
-Var I:Integer ;
-
-Begin
-	For I:= CurrentWin downto 1 do  {If there is a missing window and WinDown}
-		WinDown ; 										{is called too many times, that's okay}
-end ; {closeAllWins Proc}					{becuz I have amazing programming skills.}
 
 Function Readln( LimLeft, y, Len, BackCol, CursCol:Integer ):String ;
 
@@ -396,6 +163,77 @@ Begin
 	HiLite( LimLeft, y, Blue, Len ) ;
 	Readln := WhatDeyzSayin ;
 end ; {Readln Funct}
+
+Procedure Editshorts ;  {Edits ShortCuts}
+
+Const	Left  = True  ;
+			Right = False ;
+
+Var 	Side:Boolean ;
+			Row:Byte ;
+
+Begin
+	WinUp( 10, 10, 70, 13+CutMax ) ;
+  BorderMohn( 10, 10, 14, 13+CutMax, Black, White ) ;
+	Side := Left ;
+  WriteStr( 33, 11, 'Edit Shortcuts' ) ;
+  For Row := 1 to CutMax do
+  	Begin
+      If KeyShort[ Row ].Command <> Nothing then
+      	Begin
+		    	WriteChar( 12, 12+Row, KeyShort[ Row ].Key[ 1 ] ) ;
+    		  WriteStr( 15, 12+Row, KeyShort[ Row ].Command ) ;
+        end ;
+    	HiLite( 11, 12+Row, Blue,  3 ) ;
+			HiLite( 15, 12+Row, Blue, 55 ) ;
+    end ;
+  Row := 1 ;
+  Repeat
+		If Side = Left then
+			Begin
+				HiLite( 11, 12+Row, Green, 3 ) ;
+        Key := WaitForKeyPress ;
+        Sound( 5000 ) ;       {Beep when push a key}
+				Delay( 1 ) ;
+				NoSound ;
+        If Key = #0 then Key := Readkey
+        else
+					If ((Key>'A') and (Key<'Z')) or ((Key>'a') and (Key<'z')) or ( Key = ' ' ) then
+						Begin
+							WriteChar_a( 12, 12+Row, Upcase( Key ), Green*16+White ) ;
+              KeyShort[ Row ].Key[ 1 ] := UpCase( Key ) ;
+            end ;
+      end
+    else
+			KeyShort[ Row ].Command := Readln( 15, Row+12, 55, Green, White ) ;
+    If Side = Left then Hilite( 11, 12+row, Blue, 3 )
+    else HiLite( 15, Row+12, Blue, 55 ) ;
+    Case Key of
+    	ESC, Chr( 27 ): ;
+      Chr( Tab ):Side := Not side ;
+      DownArrow:Inc( Row ) ;
+      UpArrow:Dec( Row ) ;
+    end ;
+    If Row < 1 then Row := CutMax
+    else If Row > CutMax then Row := 1 ;
+  Until ( Key = ESC ) ;
+  Key := ' ' ;
+  WinDown ;
+  {$I-}
+  Reset( f ) ;
+	For I:=1 to CutMax do
+		Begin
+			Seek( F, OptMax + OptMax + I ) ; {4th Shortcut Keys}
+			Write( F, KeyShort[ I ].Key ) ;
+		end ;
+	For I:=1 to CutMax do
+		Begin
+			Seek( f, OptMax + OptMax + CutMax + I ) ;
+			Write( f, KeyShort[ i ].Command ) ;  {5th Shortcut Commands}
+		end ;
+	Close( f ) ;
+  {$I+}
+end ;
 
 Procedure EditMenu ;    {Edits menu settings}
 
@@ -545,7 +383,9 @@ Begin
 					Case I of
 						1:KeyShort[ i ].Key := 'P' ;    {Default Shortcuts}
 						2:KeyShort[ i ].Key := 'T' ;
-						3:KeyShort[ i ].Key := Nothing ;
+						3:KeyShort[ i ].Key := 'W' ;
+          else
+          	KeyShort[ i ].Key := ' ' ;
 					end ;
 					Seek( f, OptMax + OptMax + I ) ;
 					Write( f, KeyShort[ i ].Key ) ;
@@ -560,7 +400,9 @@ Begin
 					Case I of
 						1:KeyShort[ i ].Command := 'C:\Batches\TP.BAT'   ;  {Defaults}
 						2:KeyShort[ i ].Command := 'C:\Batches\TMSS.BAT' ;
-						3:KeyShort[ i ].Command := Nothing ;
+						3:KeyShort[ i ].Command := 'C:\Windows\Win.COM' ;
+          else
+          	KeyShort[ i ].Command := Nothing ;
 					end ;
 					Seek( f, OptMax + OptMax + CutMax + I ) ;
 					Write( f, KeyShort[ i ].Command ) ;
@@ -696,6 +538,41 @@ Begin
 		end ;
 end ; {Execute}
 
+Procedure RequirePass ;
+
+Begin
+  WinUp( 45, 8, 77, 14 ) ;
+  WriteStr( 47, 10, 'Editting Requires a Password.' ) ;
+  Repeat
+   	For I:=47 to 47+28 do WriteChar( i, 12, ' ' ) ;
+      UserType:=Readln( 47, 12, 28, Black, Green ) ;
+  Until ( Key = #13 ) or ( Key = #27 ) ;
+	If Key=#27 then
+		Begin
+      UserType:=' ' ;
+	  	Key:=' ' ;
+      Command := '' ;
+    end ;
+	For I:=1 to Length( PassWord ) do
+		PassWord[i]:=Upcase( PassWord[i] ) ;
+  I:=Length( UserType ) + 1 ;
+  Repeat
+   	Dec( I ) ;
+  Until ( UserType[i] <> ' ' ) or ( I<1 ) ;
+  if I<1 then UserType:='   '
+  else UserType := Copy( UserType, 1, i ) ;
+  For I:=1 to Length( UserType ) do
+   	UserType[i]:=Upcase( UserType[i] ) ;
+  If UserType = PassWord then
+	  Command:='!EDITSETTINGS'    {If password is correct, then}
+  else                          {allow it. Will be done in}
+  	Begin                       {a few lines later...}
+	  	Command:='' ;
+      Key:=' ' ;
+    end ;
+  WinDown ;
+end ;
+
 
 Function Cooh( Howfar:Byte ):Byte ; {Converts menu choice to WhatToDo Number}
 
@@ -821,39 +698,7 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
                   WinDown ;
                 end ;
             end ; {IF Alt-P}
-          #67 {F9}:             {Edit settings Routine}
-						Begin
-              WinUp( 45, 8, 77, 14 ) ;
-              WriteStr( 47, 10, 'Editting Requires a Password.' ) ;
-              Repeat
-              	For I:=47 to 47+28 do WriteChar( i, 12, ' ' ) ;
-                UserType:=Readln( 47, 12, 28, Black, Green ) ;
-              Until ( Key = #13 ) or ( Key = #27 ) ;
-							If Key=#27 then
-								Begin
-                  UserType:=' ' ;
-									Key:=' ' ;
-                  Command := '' ;
-                end ;
-							For I:=1 to Length( PassWord ) do
-								PassWord[i]:=Upcase( PassWord[i] ) ;
-              I:=Length( UserType ) + 1 ;
-              Repeat
-              	Dec( I ) ;
-              Until ( UserType[i] <> ' ' ) or ( I<1 ) ;
-              If I<1 then UserType:='   '
-              else UserType := Copy( UserType, 1, i ) ;
-              For I:=1 to Length( UserType ) do
-              	UserType[i]:=Upcase( UserType[i] ) ;
-              If UserType = PassWord then
-								Command:='!EDITSETTINGS'    {If password is correct, then}
-              else                          {allow it. Will be done in}
-              	Begin                       {a few lines later...}
-									Command:='' ;
-                  Key:=' ' ;
-                end ;
-            	WinDown ;
-            end ;
+          #67 {F9}:RequirePass ;
           #13:
 						Begin
 							HiLite( 22, Opt+4, Black, 32 ) ; {They finally made a choice}
@@ -871,7 +716,11 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
 							For I:=1 to Length(WhatToDo[ Cooh(Opt) ]) do
 								Command:=Command+UpCase(WhatToDo[ Cooh(Opt) ][i]);
 						end ;
-					If Copy( Command, 1, 13 ) = '!EDITSETTINGS' then EditMenu ;
+					If Copy( Command, 1, 13 ) = '!EDITSETTINGS' then
+						Case Menu( 3, 4, 23, 10, 'Edit Menu:', 'Alter Menu\Alter Shortcuts\Exit' ) of
+							1:EditMenu ;
+              2:EditShorts ;
+            end ;
 					If Copy( Command, 1, 4 ) = 'RUN ' then
 		      	Begin
 							Y:=Length( Command ) + 1 ;
@@ -893,5 +742,4 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
   WriteStr( 12, 10, 'Thanks for using Runner!' ) ;
 	Command := WaitForKeypress ; {Press a key to finally leave. If they don't,}
  	CloseAllWins ;							 {screen saver will come up in so many minutes!}
-{ GotoXY( 1, CursPos ) ;}
 end.
