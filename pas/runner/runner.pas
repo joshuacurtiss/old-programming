@@ -266,6 +266,44 @@ Begin
     	end ;
 end ; {WinDown Proc}
 
+Function WaitForKeypress:Char ; Forward ;
+
+Procedure FYI( Warning:String ) ;{For Your Info window with only Okay button}
+
+Var Key:Char ;
+		I, J:Integer ;
+
+Begin
+	WinUp( 40, 13, 73, 20 ) ;
+	If Length( Warning ) > 30 then {Wordwrap message if more than one line}
+		Begin
+			I:=31 ;
+			Repeat
+				Dec( i ) ;
+			Until ( Warning[ i ] = ' ' ) or ( i = 0 ) ;
+			If i=0 then
+				begin
+					For J:= 1 to 30 do WriteChar( j+41, 15, Warning[j] ) ;
+					For J:= 31 to Length(Warning) do WriteChar( j+11, 16, Warning[j] ) ;
+				end
+			else
+				begin
+					For J:= i downto 1 do WriteChar( j+41, 15, Warning[ j ] ) ;
+					For J:= i+1 to Length(Warning) do WriteChar(j-i+41,16,Warning[j] ) ;
+				end ;
+		end {If more than one line}
+	else
+		For I:= 1 to Length( Warning ) do WriteChar( i+41, 15, Warning[ i ] ) ;
+	WriteStr( 58, 18, 'Okay' ) ;
+	HiLite( 57, 18, Blue, 6 ) ;
+	Repeat
+		Key:='a' ;
+		Key:=WaitForKeyPress ;
+		If Key=#0 then Key:=Readkey ;
+	Until ( Key = #13 ) or ( Key = #27 ) ;
+	WinDown ;
+end ; {FYI Proc}
+
 Procedure CloseAllWins ; {Guess what it does?}
 
 Var I:Integer ;
@@ -279,6 +317,7 @@ Function Readln( LimLeft, y, Len, BackCol, CursCol:Integer ):String ;
 
 Var LimRight, X:Integer ;       {When inputting just one line}
     WhatDeyzSayin:String ;
+		Letter:Boolean ;
 
 Begin
 	HiLite( LimLeft, y, BackCol, Len ) ;
@@ -289,16 +328,18 @@ Begin
 		HiLite( x, y, CursCol, 1 ) ;         {Hilite Cursor}
 		While keypressed do
 			begin
+				Key:=' ' ;
         Sound( 5000 ) ;
-        Delay( 1 ) ;
-        NoSound ;
+				Delay( 1 ) ;
+				NoSound ;
 				Key := ReadKey ;
 				HiLite( x, y, BackCol, 1 ) ;
         If Key = #0 then
 					begin
+						Letter := False ;
 						Key := Readkey ;
 		        Case KEY of
-							#27, UpArrow, DownArrow, Chr( TAB ): ;
+							UpArrow, DownArrow, Chr( TAB ): ;
 							Del: {Special Delete}
 								begin
 									If X = LimRight then
@@ -323,42 +364,45 @@ Begin
             end ; {#Case}
           end {IF #0}
         else {IF NOT #0}
-          Case Ord( Key ) of
-          	13, Tab: ;
-						8: {Backspace}
-							Begin
-								If ( x = LimLeft ) then X := LimLeft
-								else
-									Begin
-										Dec( x ) ;
-										For I := x to ( LimRight - 1 ) do
-											WriteChar( i, y, GetChar( i+1, y ) ) ;
-										WriteChar( LimRight, y, ' ' ) ; {If anywhere else}
+					Begin
+						Letter := True ;
+						Case Key of
+							ESC, Chr(13), Chr(Tab):Letter := False ;
+							Chr(8): {Backspace}
+								Begin
+									If ( x = LimLeft ) then X := LimLeft
+									else
+										Begin
+											Dec( x ) ;
+											For I := x to ( LimRight - 1 ) do
+												WriteChar( i, y, GetChar( i+1, y ) ) ;
+											WriteChar( LimRight, y, ' ' ) ; {If anywhere else}
+										end ;
+								end  {BackSpace}
+							else
+								If (Key<>#27) or (Ord(Key)<>27) then
+									begin
+										For I := LimRight downto ( x + 1 ) do
+											WriteChar( i, y, GetChar( i-1, y ) ) ;
+										WriteChar( x, y, Key ) ;
+										Inc( x ) ;
+										If x > LimRight then x := LimRight ;
 									end ;
-							end  {BackSpace}
-						else
-							If (Key<>#27) or (Ord(Key)<>27) then
-								begin
-									For I := LimRight downto ( x + 1 ) do
-										WriteChar( i, y, GetChar( i-1, y ) ) ;
-									WriteChar( x, y, Key ) ;
-									Inc( x ) ;
-									If x > LimRight then x := LimRight ;
-                end ;
-    	    end ; {CASE}
-      End ; {While KeyPressed}
-  Until ( Key = #13 ) or ( Key = #27 ) or ( Key = Chr( Tab ) ) or
-  			( Key = UpArrow ) or ( Key = DownArrow ) ;
-  WhatDeyzSayin := '' ;
-  For I:=LimLeft to LimRight do
-    WhatDeyzSayin := WhatDeyzSayin + GetChar( i, y ) ;
-  I:=0 ;
-  Repeat
-  	Inc( I ) ;
-  Until ( WhatDeyzSayin[ i ] <> ' ' ) or ( I > Length( WhatDeyzSayin ) ) ;
-  If I > Length( WhatDeyzSayin ) then WhatDeyzSayin:='(Empty)' ;
-  HiLite( LimLeft, y, Blue, Len ) ;
-  Readln := WhatDeyzSayin ;
+						end ; {CASE}
+					end ; {IF NOT #0}
+			End ; {While KeyPressed}
+	Until ( ( Key = #13 ) or ( Key = #27 ) or ( Key = Chr( Tab ) ) or
+				( Key = UpArrow ) or ( Key = DownArrow ) ) and ( Letter=False ) ;
+	WhatDeyzSayin := '' ;
+	For I:=LimLeft to LimRight do
+		WhatDeyzSayin := WhatDeyzSayin + GetChar( i, y ) ;
+	I:=0 ;
+	Repeat
+		Inc( I ) ;
+	Until ( WhatDeyzSayin[ i ] <> ' ' ) or ( I > Length( WhatDeyzSayin ) ) ;
+	If I > Length( WhatDeyzSayin ) then WhatDeyzSayin:='(Empty)' ;
+	HiLite( LimLeft, y, Blue, Len ) ;
+	Readln := WhatDeyzSayin ;
 end ; {Readln Funct}
 
 Procedure EditMenu ;
@@ -391,7 +435,7 @@ Begin
     else if row > OptMax then Row:=OptMax ;
   Until ( key = #27 ) ;
   {$I-}
-  	Reset( f ) ;
+		Reset( f ) ;
     ReWrite( f ) ;
     Reset( f ) ;
     For I:=1 to OptMax do
@@ -409,8 +453,18 @@ Begin
     	UserType := UserType + Chr( Ord( PassWord[i] ) + 2 ) ;
     Seek( f, OptMax + OptMax ) ;
     Write( f, UserType ) ;
-    Close( f ) ;
-  {$I+}
+		For I:=1 to CutMax do
+			Begin
+				Seek( F, OptMax + OptMax + I ) ;
+				Write( F, KeyShort[ I ].Key ) ;
+			end ;
+		For I:=1 to CutMax do
+			Begin
+				Seek( f, OptMax + OptMax + CutMax + I ) ;
+				Write( f, KeyShort[ i ].Command ) ;
+			end ;
+		Close( f ) ;
+	{$I+}
 end ;
 
 Procedure GetStuffs ;
@@ -527,100 +581,125 @@ end ; {PROC}
 
 Function AfterDark:Char ;
 
-Var Change:Array[ 1..80, 1..25 ] of Boolean ;
-		DChange, mj, pip:Byte ;
-		c, Bob:Char ;
+Var Bob:Char ;
 		TimeToGo:Boolean ;
+		l, r, u, d:Byte ;
 
 Begin
 	TimeToGo := False ;
 	Randomize ;
+	WinUp( 1, 1, 80, 25 ) ;
+	For r:=1 to 80 do
+		For u:=1 to 25 do
+			With Scrn[ CurrentWin ] do
+				WriteChar_a( r, u, CharMask[ r, u ], AttribMask[ r, u ] ) ;
 	Repeat
-		DChange := Random(50) ;
-		For MJ := 1 to 80 do
-			For Pip := 1 to 25 do
-				Change[ mj, pip ] := False ;
-		MJ := 0 ; Pip := 0 ;
+		L:=Random( 37 ) +1 ;
 		Repeat
-			Inc( mj ) ;
-			Repeat
-				Inc( Pip ) ;
-				C:=GetChar( mj, pip ) ;
-				If ( Ord(c) > 7+DChange ) and ( Ord(c) < 256-DChange ) then
-					Begin
-						Change[ mj, pip ] := True ;
-						WriteChar( mj, pip, Chr( Ord(c)+DChange ) ) ;
-					end ;
-				If Keypressed then
-					Begin
-						Bob:=Readkey ;
-						TimeToGo:=True ;
-					end ;
-			Until ( pip = 25 ) or timetogo ;
+			R:=Random( 80 ) ;
 			If Keypressed then
 				Begin
 					Bob:=Readkey ;
 					TimeToGo:=True ;
 				end ;
-			Pip := 0 ;
-			Inc( mj ) ;
-		Until ( mj > 80 ) or timetogo ;
-		MJ := 0 ; Pip := 0 ;
+		Until ( r > l ) or TimeToGo ;
+		U:=Random( 11 ) +1 ;
 		Repeat
-			Inc( mj ) ;
-			Repeat
-				Inc( Pip ) ;
-				If Change[ mj, pip ] then
-					Begin
-						WriteChar( mj, pip, Chr( Ord(c)-DChange ) ) ;
-					end ;
-			Until ( pip = 25 ) or timetogo ;
-			Pip := 0 ;
-			Inc( mj ) ;
-		Until ( mj > 80 ) or timetogo ;
+			D:=Random( 25 ) ;
+			If Keypressed then
+				Begin
+					Bob:=Readkey ;
+					TimeToGo:=True ;
+				end ;
+		Until ( d > u ) or TimeToGo ;
+		If NOT TimeToGo then
+			Begin
+				WinUp( l, u, r, d ) ;
+				Scrn[ Currentwin ].Status := False ;
+				Delay( 1 ) ;
+			end ;
+		If Keypressed then
+			Begin
+				Bob:=Readkey ;
+				TimeToGo:=True ;
+			end ;
 	Until TimeToGo ;
+	WinDown ;
+	AfterDark := Bob ;
 end ;
 
-
-Function WaitForKeypress:Char ;
+																{Allows key input and management for a}
+Function WaitForKeypress:Char ;	{screen saver both at same time.      }
 
 Var h1, h2, m1, m2, s1, s2, Hundredths:Word ;
-		ItsTime:Boolean ;
+		ItsTime, SchoolsOut:Boolean ;
+		Hooji:Char ;
 
 Begin
-	GetTime( h1, m1, s1, hundredths ) ;
+	ItsTime := False ;
+	SchoolsOut := False ;
 	Repeat
-		GetTime( h2, m2, s2, hundredths ) ;
-		If ( (h2=1) and (h1=12) ) or ( h2 > h1 ) then Inc( m2, 60 ) ;
-		s2 := ( m2 - m1 ) * 60 ;
-		If ( s2 - s1 > AfterDarkTime * 60 ) or Keypressed then ItsTime := true ;
-	Until ItsTime ;
-	If s2 - s1 > AfterDarkTime * 60 then WaitForKeypress := AfterDark
-	else WaitForKeypress := Readkey ;
+		GetTime( h1, m1, s1, hundredths ) ;
+		Repeat
+			GetTime( h2, m2, s2, hundredths ) ;
+			If ( (h2=1) and (h1=12) ) or ( h2 > h1 ) then Inc( m2, 60 ) ;
+			Inc( s2, ( m2 - m1 ) * 60 ) ;
+			If Keypressed then
+				Begin
+					ItsTime := True ;
+					SchoolsOut := True ;
+				end ;
+		Until ( s2 - s1 > AfterDarkTime * 60 ) or ItsTime ;
+		If ( Not ItsTime ) and ( Not SchoolsOut ) then Hooji := AfterDark ;
+	Until SchoolsOut ;
+	WaitForKeypress := Readkey ;
 end ;
 
 
 Procedure Execute ;
 
+Var D:Integer ;
+		S:PathStr ;
+		Batman, Robin:String ;
+
 Begin
 	CloseAllWins ;
 	If DoCommand then
-  	Begin
-      If 1 = 1 then
-      	Begin
-        	I:=Length( Command ) + 1 ;
-        	Repeat
-          	Dec( i ) ;
-          Until ( Command[ i+1 ] = '\' ) or ( I<0 ) ;
-          If I<0 then Command := 'cd'
-          else
-            ChDir( Copy( Command, 1, i ) ) ;
-        end ;
+		Begin
+			I:=Length( Command ) + 1 ;
+			Repeat
+				Dec( i ) ;
+			Until ( Command[ i+1 ] = '\' ) or ( I<0 ) ;
+			If I<0 then Command := 'cd'
+			else
+				Begin
+{$I-}
+					ChDir( Copy( Command, 1, i ) ) ;
+{$I+}
+					d := IOResult ;
+					If d <> 0 then
+						If d = 3 then
+							FYI( 'Sorry, '+Copy( Command, 1, i )+' is a Bad Path.' )
+						else
+							FYI( 'Sorry, some strange error occurred.' ) ;
+				end ;
 			Command := '/C ' + Command;
 			DoCommand := False ;
-		  SwapVectors;
-			Exec(GetEnv('COMSPEC'), Command);
-			SwapVectors;
+			If ( I > 0 ) and ( d = 0 ) then
+				Begin
+					Inc( I, 3 ) ;
+					Batman := Copy( Command, I+2, Length( Command ) - i - 1 ) ;
+					Robin  := Copy( Command, 1, i ) ;
+					Delete( Robin, 1, 3 ) ;
+					S := FSearch( Batman, Robin ) ;
+					If S = '' then FYI( Batman+' Can''t be Found at '+Robin+'.' )
+					else
+						Begin
+							SwapVectors;
+							Exec(GetEnv('COMSPEC'), Command);
+							SwapVectors;
+						end ;
+				end ;
 		end ;
 end ; {Execute}
 
@@ -637,8 +716,8 @@ Begin {$M 8192, 0, 0}
 			I:=0 ;
 			Repeat
 				Inc( I ) ;
-				If ( Upcase(Key) = Upcase(KeyShort[i].Key[1]) ) and
-					 (KeyShort[i].Key<>Nothing) then
+				If ( Upcase( Key ) = Upcase( KeyShort[ i ].Key[ 1 ] ) ) and
+					 ( KeyShort[ i ].Key <> Nothing ) then
 					Begin
 						DoCommand := True ;
 						Command := KeyShort[ i ].Command ;
@@ -800,6 +879,6 @@ Begin {$M 8192, 0, 0}
 	WinUp( 10, 8, 38, 12 ) ;
   WriteStr( 12, 10, 'Thanks for using Runner!' ) ;
 	While NOT Keypressed do SitAround ;
-	CloseAllWins ;
+ 	CloseAllWins ;
 { GotoXY( 1, CursPos ) ;}
 end.
