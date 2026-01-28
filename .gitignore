@@ -14,9 +14,13 @@ TURBO.DSK
 *.$$$
 *.bak
 *.dat
+*.jmc
+*.jpg
 *.log
 *.ms
 *.frk
+*.shk
+*.sit
 
 # Folders to ignore
 incomplete
