@@ -533,10 +533,23 @@ Begin
 			If ( I > 0 ) and ( d = 0 ) then {Continue only if everything's cooh}
 				Begin
 					Inc( I, 3 ) ; {Take into account '/C '}
-					Batman := Copy( Command, I+2, Length( Command ) - i - 1 ) ;
+					Batman := Copy( Command, I+1, Length( Command ) - i ) ;
 					Robin  := Copy( Command, 1, i ) ;      {Batman: the file}
 					Delete( Robin, 1, 3 ) ;                {Robin: the path}
-					S := FSearch( Batman, Robin ) ; {Continue only if its a real file}
+          I:=0 ;
+          Repeat
+          	Inc( I ) ;
+          Until ( Batman[ i+1 ] = ' ' ) or ( I >= Length( Batman ) ) ;
+          Batman := Copy( Batman, 1, i ) ;
+          S:='' ;
+          If Pos( '.', Batman ) = 0 then
+            Begin
+            	If FSearch( Batman+'.COM', Robin ) <> '' then S:=Batman+'.COM' ;
+            	If FSearch( Batman+'.EXE', Robin ) <> '' then S:=Batman+'.EXE' ;
+            	If FSearch( Batman+'.BAT', Robin ) <> '' then S:=Batman+'.BAT' ;
+            end
+          else
+						S := FSearch( Batman, Robin ) ; {Continue only if its a real file}
 					If S = '' then FYI( Batman+' Can''t be Found at '+Robin+'.' )
 					else
 						Begin
