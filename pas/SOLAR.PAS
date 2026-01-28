@@ -121,17 +121,25 @@ Procedure Menu ;
 		TextColor( magenta ) ;
 		Writeln( 'Star Wars Action Figures' )  ;
 		TextColor( white ) ;
-		Howdy:=22 ;
-		GotoXY( howdy, 9 ) ;
+		Howdy:=22 ; Hi:=7 ;
+		GotoXY( howdy, hi ) ;
 		Write( '1. Add an Action Figure' ) ;
-		GotoXY( howdy, 12 ) ;
+		GotoXY( howdy, hi+2 ) ;
 		Write( '2. Edit an Action Figure' ) ;
-		GotoXY( howdy, 15 ) ;
+		GotoXY( howdy, hi+4 ) ;
 		Write( '3. Delete an Action Figure' ) ;
-		GotoXY( howdy, 18 ) ;
+		GotoXY( howdy, hi+6 ) ;
 		Write( '4. Display an Action Figure' ) ;
-		GotoXY( howdy, 21 ) ;
-		Write( '5. Quit ' ) ;
+		GotoXY( howdy, hi+8 ) ;
+    Write( '5. Ressurect a Deleted Figure' ) ;
+    GotoXY( howdy, hi+10 ) ;
+    Write( '6. Sort Action Figures' ) ;
+    Gotoxy( howdy, hi+12 ) ;
+    Write( '7. Configure Sort Priorities' ) ;
+    GotoXY( howdy, hi+14 ) ;
+    Write( '8. Purge Deleted Figures' ) ;
+    GotoXY( howdy, hi+16 ) ;
+		Write( 'Q. Quit ' ) ;
 	end  ;
 
 Procedure Readint( x, linenum, lenstr, Prev:integer ) ;
@@ -288,17 +296,9 @@ Procedure SureWin ;
 		Write( 'Yes' ) ;
 		Repeat
 			If Sure = FALSE then
-				begin
-					Hilite( 66, 20, 1, 5 ) ;
-					GotoXY( 67, 20 ) ;
-					Write( 'No' ) ;
-				end
+				Hilite( 66, 20, 1, 5 )
 			else
-				begin
-					Hilite( 56, 20, 1, 5 ) ;
-					Gotoxy( 57, 20 ) ;
-					Write( 'Yes' ) ;
-				end ;
+				Hilite( 56, 20, 1, 5 ) ;
 			GotoXY( 1, 1 ) ;
 			Choice:=Readkey ;
 			Hilite( 56, 20, 2, 16 ) ;
@@ -686,7 +686,7 @@ Procedure specialhilite( pos:integer ) ;
 
 Procedure Edit ;
 
-	var pos:integer ;
+	var pos, a:integer ;
 
 	begin
 		Sure:=false ;
@@ -745,23 +745,38 @@ Procedure Edit ;
 							begin
 								Case pos of
 									1:begin
+                      For a:=1 to 40 do Mem[ $B800:( (10+pos)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
+                      TextBackground( Magenta ) ;
 											ReadChar( 32, 11+pos, 40, Fig.name ) ;
+                      Hilite( 32, 11+pos, 1, 40 ) ;
 									    Fig.name:=Totalchar ;
 										end ;
 									3:begin
+                      For a:=1 to 40 do Mem[ $B800:( (10+pos)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
+                      TextBackground( Magenta ) ;
 											readchar( 32, 11+pos, 40, Fig.appearance ) ;
+                      Hilite( 32, 11+pos, 1, 40 ) ;
 											Fig.appearance:=Totalchar ;
 										end ;
 									2:begin
+                      For a:=1 to 3 do Mem[ $B800:( (12)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
+                      TextBackground( Magenta ) ;
 											readint( 32, 13, 3, Fig.num ) ;
-											Fig.num:=totalint ;
+											Hilite( 32, 13, 1, 3 ) ;
+                      Fig.num:=totalint ;
 										end ;
 									4:begin
+                      For a:=1 to 3 do Mem[ $B800:( (14)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
+                      TextBackground( Magenta ) ;
 											readint( 32, 15, 3, Fig.condition ) ;
+                      Hilite( 32, 15, 1, 3 ) ;
 											Fig.condition:=totalint ;
 										end ;
 									5:begin
+                      For a:=1 to 5 do Mem[ $B800:( (15)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
+                      TextBackground( Magenta ) ;
 											ReadChar( 32, 16, 5, Fig.Sideofforce ) ;
+                      Hilite( 32, 16, 1, 5 ) ;
 										  Fig.sideofforce:=Totalchar ;
 										end ;
 								end ; {case}
@@ -881,8 +896,8 @@ begin
 			'2':edit ;
 			'3':KillRec ;
 			'4':ViewRecs ;
-			'p':Purge ;
-			's':If (Pref[1]=0) and (Pref[2]=0) and (Pref[3]=0) then
+			'8':Purge ;
+			'6':If (Pref[1]=0) and (Pref[2]=0) and (Pref[3]=0) then
 						begin
 							Prefs ;
 							Sort( Pref[1], Pref[2], Pref[3] ) ;
@@ -893,10 +908,16 @@ begin
 							Sort( Pref[1], Pref[2], Pref[3] ) ;
 							ErrorWin( 'The record sort was successful.', '' ) ;
 						end ; {Sort MiniRoutine}
-			'r': Ressurect ;
-			'c': Prefs ;
+			'5': Ressurect ;
+			'7': Prefs ;
+      '9', '0': ErrorWin( 'Thanks to the Founder of the Oasis of Joy!', '' );
+      'Q', 'q':begin
+                 SureWin ;
+                 If Sure=False then Choice:='a'
+                 else Choice:='Q' ;
+               end ; {IF}
 		end ; {case}
-	Until ( Choice = '5' ) or ( UPCASE( Choice ) = 'Q' ) ;
+	Until ( UPCASE( Choice ) = 'Q' ) ;
 
 	{Notes:														 	  	}
 	{   Seek( Filename, Position ) ;      	}
