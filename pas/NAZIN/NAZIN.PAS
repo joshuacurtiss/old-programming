@@ -3,32 +3,44 @@ Program NetNazin ;
 Uses CRT, DOS, GRAPH, NZNTools ; {Consts: Tab, Arrows, Pg's, Del, USERMAX}
 
 Const NumOfWins = 8  ;  {Max wins}
-			UserMax   = 30  ; {Max Num of Users allowed}
+			UserMax   = 30 ;  {Max Num of Users allowed}
+      AreaMax   = 10 ;  {Max Num of Areas allowed}
 			TimePosX  = 65 ;  {Clock Pos}
 			TimePosY  = 5  ;  {Clock Pos}
       WhiteOnBlack = ( Black*16 ) + White ; {Standard Attrib}
 
 Var Temp:Win ;
 		CurrentMessage:Message ;
-		Choice, i, j, ID, Num, Response, Where, Who:Integer ;
-		NazinDir:String ;
+		SSndLen, Tone, Choice, i, j, ID, Num, Response, Where, Who, Area:Integer;
+		NazinDir, OrigDir:String ;
 		Key:Char ;
 		What:String[ 54 ] ;
+		AreaName:Array[ 1..AreaMax ] of String ;
 		SearchAll, Searched:Boolean ;
-		BigHeap:File of Message ;    { }
-		UserHeap:File of Character ; { Files }
-    DatFile:file of String ;     { }
+		BigHeap:Array[ 1..AreaMax ] of File of Message ;    { }
+		UserHeap:File of Character ; 												{ Files }
+    PrefHeap, DatFile:file of String ;									{ }
 		Date:Array[ 1..3 ] of Integer ;
 		User:Array[ 1..UserMax ] of Character ;
 
-Procedure DOSCommand( Command:String ) ;
-                                                     {I'm not using it}
+Procedure StartSound( L:Byte ) ;
+
+Var I:Byte ;
+
 Begin
- 	Command := '/C ' + Command;
-  SwapVectors;
- 	Exec(GetEnv('COMSPEC'), Command);
- 	SwapVectors;
-end ; {DOSCommand PROC}
+	For I:=1 to 60 do
+  	Begin
+    	Sound( i*100 ) ;
+      Delay( l ) ;
+      NoSound ;
+    end ;
+  For I:=59 downto 1 do
+  	Begin
+    	Sound( i*100 ) ;
+      Delay( l ) ;
+      NoSound ;
+    end ;
+end ;
 
 Procedure IdentifyUser ;			{Get user logon ID}
 
@@ -46,19 +58,30 @@ end ;
 
 Procedure Filter ;					{No cursing allowed on public areas!!!}
 
-Var l, j, k, i:Integer ;
-		temp, lkfr:String[5] ;
+Var l, j, k, i, p:Integer ;
+		temp, lkfr:String ;
 
 begin
 	l:=0 ;
   repeat
     Inc( l ) ;
     Case l of
-    	1:lkfr:='SHIT' ;
-      2:lkfr:='DAMN' ;
-      3:lkfr:='FUCK' ; 			{All words to be filtered out}
-      4:lkfr:='BITCH' ;     {HELL filters out Hello      }
+    	1:lkfr:='SHIT'  ;
+      2:lkfr:='DAMN'  ;
+      3:lkfr:='FUCK'  ; 			{All words to be filtered out}
+      4:lkfr:='BITCH' ;
+      5:lkfr:=' HELL ' ;
     end ;
+    Temp:='' ;
+    For K:=1 to Length( CurrentMessage.Title ) do
+			Temp:=Temp+UpCase( CurrentMessage.Title[k] ) ;
+    If Pos( lkfr, temp ) > 0 then
+    	With CurrentMessage do
+      	Begin
+          P:=Pos( LkFr, Temp ) ;
+        	Delete( Title, P, Length( LkFr ) ) ;
+    			For K:=1 to Length( LkFr ) do Insert( '*', Title, P ) ;
+        end ;
 	  For K:= 7 to 24 do
 			For i:= 2 to 78 - Length( lkfr ) do
 				begin
@@ -69,8 +92,8 @@ begin
             For J:=I to length( lkfr ) + i - 1 do
               CurrentMessage.message[ j, k ] := '*' ; {When found, replace}
 				end ; {Checking one line}                            {with *'s}
-	Until l>4 ;
-END ; {filter PROC}
+	Until l>5 ;
+END ; {Filter PROC}
 
 Procedure FYI( Warning:String ) ;{For Your Info window with only Okay button}
 
@@ -192,6 +215,9 @@ Begin
 		HiLite( x, y, CursCol, 1 ) ;         {Hilite Cursor}
 		While keypressed do
 			begin
+        Sound( tone ) ;
+        Delay( 1 ) ;
+        NoSound ;
 				Key := ReadKey ;
 				HiLite( x, y, BackCol, 1 ) ;
         If Key = #0 then
@@ -276,13 +302,26 @@ Begin
 				DisplayTime( TimePosX, TimePosY, True, False, True ) ;
 				HiLite( x, y, Blue, 1 ) ;         {Hilite Cursor}
 				While keypressed do
-					begin {FIX INDENTATION!}
+					begin
 						Key := ReadKey ;
+            Sound( tone ) ;
+            Delay( 1 ) ;
+            NoSound ;
 						HiLite( x, y, Black, 1 ) ;
 						If Key = #0 then
 							begin
 								Key := Readkey ;
 								Case Key of
+                	#71 {HOME}:
+										X:=Lim.Left ;
+                  #79 {END}:
+                  	Begin
+                      x:=Lim.Right+1 ;
+                      Repeat
+                      	Dec( x ) ;
+                      Until GetChar( x, y ) <> ' ' ;
+                      If x<Lim.Right then Inc( x ) ;
+                    end ;
 									#72: {UpArrow}
 										Begin
 											Dec( y ) ;
@@ -444,8 +483,8 @@ Var Year, Month, Day, OfWeek:Word ;
 Begin
 	GetDate( Year, Month, Day, OfWeek ) ;
 	WriteStr( TimePosX, TimePosY, '            ' ) ;
-	GotoXY( TimePosx, Timeposy ) ;          {Get all info of date, to who}
-	Write( Month, '-', Day, '-', Year ) ;                          {ETC}
+	GotoXY( TimePosx, Timeposy ) ;
+	Write( Month, '-', Day, '-', Year ) ;
 	DateStr:='' ;
 	For I:= TimePosx to TimePosX+9 do
 		If GetChar(i,TimePosY) <> ' ' then
@@ -453,33 +492,30 @@ Begin
 	GetDateString:=DateStr ;
 end ; {GetDateString FUNCT}
 
-Procedure GetUsers( FileName:String ) ; {Reads User directory off of file}
+Procedure GetUsers ; {Reads User directory off of file}
 
 Var i:Integer ;
 
 Begin
-	Assign( UserHeap, FileName ) ;
 	{$I-}
-		Reset( UserHeap ) ;
-		If IOResult <> 0 then
-			Rewrite( UserHeap ) ;
-		Close( UserHeap ) ;
-		Reset( UserHeap ) ;
+		Repeat
+			Reset( UserHeap ) ;
+    Until ( IOResult = 0 ) ;
 		For I:= 1 to UserMax do
-			begin
+			Begin
 				Seek( UserHeap, i-1 )  ;
 				Read( UserHeap, User[ i ] ) ;
 			end ;
 		Close( UserHeap ) ;
-		If IOResult <> 0 then ;
 	{$I+}
   For I:=1 to UserMax do
 		If User[ i ].Status = False then      {For empty slots}
-      begin
-        User[ i ].NetID := '---->DEAD' ;
-        User[ i ].Name  := '   ' ;
-        User[ i ].ExtendedPrivileges := False ;
-      end ;
+      With User[ i ] do
+				begin
+        	User[ i ].NetID := '---->DEAD' ;
+	        User[ i ].Name  := '   ' ;
+	        User[ i ].ExtendedPrivileges := False ;
+	      end ;
   If (User[1].NetID<>'0ALL     ') or (User[2].NetID<>'0NOBODY  ') then
   	begin
 		  With User[ 1 ] do
@@ -498,13 +534,17 @@ Begin
         		ExtendedPrivileges := False ;
             Status:=True ;
 		      end ;
-      Reset( UserHeap ) ;
-		  For I:=1 to 2 do
-  			Begin
-		    	Seek( UserHeap, i-1 ) ;
-    		  Write( UserHeap, User[ i ] ) ;
-		    end ;
-      Close( UserHeap ) ;
+      {$I-}
+				Repeat
+					Reset( UserHeap ) ;
+        Until ( IOResult = 0 ) ;
+			  For I:=1 to 2 do
+	  			Begin
+			    	Seek( UserHeap, i-1 ) ;
+	    		  Write( UserHeap, User[ i ] ) ;
+			    end ;
+	      Close( UserHeap ) ;
+    	{$I+}
 		end ; {Make sure 'ALL' and 'Nobody' is always there}
 end ; {GetUsers Proc}
 
@@ -550,8 +590,13 @@ Begin
 				For I:=12 to 69 do WriteChar( i, 18, ' ' ) ;
     	  WriteStr( 12, 18, 'Name: ' ) ;
   	    ChosenName := Readln( 18, 18, 47, Green, Blue, false ) ;
-	      Sure:=AreYouSure( 'Do you want this as your chosen name?' ) ;
-      Until Sure ;
+        If Pos( Chr( 27 ), ChosenName ) > 0 then
+					Begin
+						ID:=2 ;
+						WinDown ;
+						Exit ;
+          end ;
+      Until AreYouSure( 'Do you want this as your chosen name?' ) ;
 			While Length( HisLogonID ) < 9 do HisLogOnID := HisLogonID + ' ' ;
       With User[ ID ] do
 			  begin
@@ -560,16 +605,93 @@ Begin
           NetID := HisLogonID ;
           ExtendedPrivileges := False ;
         end ; {WITH}
-			Rewrite( UserHeap ) ;
-			Reset( UserHeap ) ;
-			For K:=1 to UserMax do
-				begin
-					Write( UserHeap, User[k] ) ;    {Save changes}
-				end ;
-			Close( UserHeap ) ;
+      {$I-}
+				Repeat
+					Rewrite( UserHeap ) ;
+        Until ( IOResult = 0 ) ;
+				Reset( UserHeap ) ;
+				For K:=1 to UserMax do Write( UserHeap, User[k] ) ;  {Save changes}
+				Close( UserHeap ) ;
+      {$I+}
       WinDown ;
     end ;
 end ; {IntroNewUser Proc}
+
+Procedure GetPrefs ;
+
+Var I:Integer ;
+		TempStr:String ;
+
+Begin
+  {$I-}
+  	Repeat
+	    Reset( PrefHeap ) ;
+    Until ( IOResult = 0 ) ;
+    For I:=1 to AreaMax do
+    	Begin
+      	Seek( PrefHeap, i-1 ) ;
+        Read( PrefHeap, AreaName[ i ] ) ;
+        If IOResult <> 0 then
+        	begin
+	        	AreaName[ i ] := 'Empty' ;
+  	        Seek( PrefHeap, i-1 ) ;
+            Write( PrefHeap, AreaName[ i ] ) ;
+          end ;
+      end ;
+    TempStr:='' ;
+    Seek( PrefHeap, AreaMax ) ;
+    Read( PrefHeap, TempStr ) ;
+    If IOResult <> 0 then
+      begin
+      	For I:=1 to 50 do TempStr:=TempStr+'t' ;
+        Seek( PrefHeap, AreaMax ) ;
+        Write( PrefHeap, TempStr ) ;
+      end ;
+	  Tone:=( Length(TempStr) ) * 100; {Tone is measured by length of string}
+    Seek( PrefHeap, AreaMax + 1 ) ;
+    Read( PrefHeap, TempStr ) ;
+    If IOResult <> 0 then
+    	Begin
+      	TempStr:='Hi!' ;
+        Seek( PrefHeap, AreaMax + 1 ) ;
+        Write( PrefHeap, TempStr ) ;
+      end ;
+    Close( PrefHeap ) ;
+	{$I+}
+  SSndLen := Length( TempStr ) ;
+  If AreaName[ 1 ] = 'Empty' then AreaName[ 1 ]:='General' ; {Temporary}
+end ;
+
+
+Procedure GetDataPNTR ;
+
+Begin
+ 	Assign( DatFile, 'DataPNTR.nzn' ) ;
+  {$I-}
+  Repeat
+		Reset( DatFile ) ;
+    If IOResult = 2 then ReWrite( DatFile ) ;
+    Reset( DatFile ) ;
+  Until ( IOResult = 0 ) ;
+  Read( DatFile, NazinDir ) ;
+  If IOResult <> 0 then            {Gives path of data}
+		begin
+			NazinDir := 'C:\NetNAZIN' ;
+		  ReWrite( DatFile ) ;          {If no path file, choose default}
+			Reset( DatFile ) ;            {and put it into the path file}
+ 			Write( Datfile, NazinDir ) ;
+    end ;
+  Seek( Datfile, 1 ) ;
+	Read( DatFile, OrigDir ) ;
+  If IOResult <> 0 then            {Gives path of data}
+		begin
+			OrigDir := 'C:\Prog' ;
+			Seek( DatFile, 1 ) ;
+			Write( Datfile, OrigDir ) ;
+    end ;
+  Close( DatFile ) ;
+  {$I+}
+end ;
 
 
 Procedure NazinStart ; {First and foremost to be done}
@@ -577,59 +699,62 @@ Procedure NazinStart ; {First and foremost to be done}
 Var Tempstr:String ;
 
 Begin
-	{$M 8192, 0, 0}
+  Area:=1 ;
 	InitWins ; {Necessary ZakTools Init, otherwise windows act funky}
-   {$I-}
-  	Assign( DatFile, 'DataPNTR.nzn' ) ;
-    Reset( DatFile ) ;
-    If IOResult <> 0 then ReWrite( DatFile ) ;
-    Reset( DatFile ) ;
-    Read( DatFile, NazinDir ) ;
-    If IOResult <> 0 then            {Gives path of data}
-			begin
-				NazinDir := 'C:\NetNAZIN' ;
-			  ReWrite( DatFile ) ;          {If no path file, choose default}
-				Reset( DatFile ) ;            {and put it into the path file}
-  			Write( Datfile, NazinDir ) ;
-      end ;
-    Close( DatFile ) ;
-		Assign( BigHeap, NazinDir + '\Messages.NZN' ) ;
-    Reset( BigHeap ) ;
-		If IOResult = 3 then
+  {$I-}
+		GetDataPNTR ;
+  {$I+}
+  {$I-}
+    For I:=1 to AreaMax do
     	Begin
-				MkDir( NazinDir ) ;
-       	Assign( BigHeap, NazinDir + '\Messages.NZN' ) ;
-      end ; {IF NO DIR}
-		Reset( BigHeap ) ;
-		If IOResult = 2 then
-			Rewrite( BigHeap ) ;
-		Close( BigHeap ) ;
+        If I<10 then TempStr:=Chr( i+48 )
+        else TempStr := Chr( (I Div 10)+48 ) + Chr( I-(I Div 10)*10+48 ) ;
+				Assign( BigHeap[ i ], NazinDir + '\M_Area'+TempStr+'.NZN' ) ;
+		    Repeat
+					Reset( BigHeap[ i ] ) ;
+					If IOResult = 3 then
+						MkDir( NazinDir ) ;
+					Reset( BigHeap[ i ] ) ;
+					If IOResult = 2 then
+						Rewrite( BigHeap[ i ] ) ;
+          Reset( BigHeap[ i ] ) ;
+        Until ( IOResult = 0 ) ;
+				Close( BigHeap[ i ] ) ;
+    	end ;
+    Assign( PrefHeap, NazinDir + '\Prefs.NZN' ) ;
+		Reset( PrefHeap ) ;
+    If IOResult = 2 then ReWrite( PrefHeap ) ;
+		Assign( UserHeap, NazinDir+'\Users.NZN' ) ;
+		Reset( UserHeap ) ;
+		If IOResult = 2 then Rewrite( UserHeap ) ;
+		Close( UserHeap ) ;
 	{$I+}
-	Reset( BigHeap ) ;
+	For I:=1 to UserMax do User[ i ].Status := False ;
+  GetPrefs ;
+  GetUsers ;
+	For I:=1 to UserMax do If User[ i ].Status = False then
+		User[ i ].ExtendedPrivileges := False ;           {Safety Precaution}
   NazinDir:=NazinDir + '\' ;
 	TextBackground( Black ) ;
 	WinUp( 3, 3, 39, 5 ) ;
 	WriteStr( 5, 4, 'You are feeling very dizzy... ' ) ;
-	ChillOut( 140 ) ;
+	ChillOut( 100 ) ;
 	WinDown ;
 	WinUp( 50, 14, 79, 16 ) ;
 	WriteStr( 52, 15, 'Your head is spinning...' ) ;
-	ChillOut( 200 ) ;
+	ChillOut( 100 ) ;
 	WinDown ;
 	WinUp( 10, 12, 62, 14 ) ;
 	WriteStr( 12, 13, 'And you find yourself in the land of Nazin.' ) ;
-	ChillOut( 275 ) ;
+	ChillOut( 155 ) ;
+  StartSound( SSndLen ) ;
 	WinDown ;
 	TextColor( White ) ;
 	InitWins ;
 	WinUp( 1, 1, 80, 25 ) ; {Saves screen condition before prog ran}
 	ClrScr ;
-	For I:=1 to UserMax do User[ i ].Status := False ;
-	GetUsers( NazinDir + 'Users.NZN' ) ;         {Reads user file}
-	For I:=1 to UserMax do If User[ i ].Status = False then
-		User[ i ].ExtendedPrivileges := False ;           {Safety Precaution}
 	WinUp( 63, 1, 79, 6 ) ;
-	WriteStr( 65, 2, 'NetNAZIN v0.8' ) ;
+	WriteStr( 65, 2, 'NetNAZIN v0.8b' ) ;
 	IdentifyUser ;
 	If ID = 0 then                     {If user is unknown to list, introduce}
 		IntroNewUser( GetEnv( 'ID' ) ) ;
@@ -655,17 +780,11 @@ Begin
 	Where:=4 ; Who:=2 ; What:=' ';   {Search Vars}
 end ; {NazinStart}
 
-
-Function WriteMenu:Integer ;
-
-Var I, J, Ymax, opt:Integer ;
+Procedure MenuAnimation( Ymax, x:Integer ) ;
 
 Begin
-	Ymax:=18 ;
-	If Response > 0 then Inc( Ymax ) ;
-	If User[ ID ].ExtendedPrivileges then ;
 	For J:=14 to Ymax do
-		For I:=1 to 20 do
+		For I:=1 to x do
     	begin
 				Scrn[ CurrentWin + 1 ].CharMask[i,j] := GetChar( i, j ) ;
         Scrn[ CurrentWin + 1 ].Attribmask[i,j] := GetCharAttrib( i, j ) ;
@@ -676,30 +795,30 @@ Begin
 			Top:=14 ;
 			Bottom:=ymax ;                   {Save stuff underneath menu}
 			Left:=1 ;
-			Right:=20 ;
+			Right:=x ;
 		end ;
-	For I:=1 to 20 do
+	For I:=1 to x do
 		begin
 			WriteChar_A( i, 14, '¿', Whiteonblack ) ;
 			WriteChar_A( i, ymax, 'Ù', Whiteonblack ) ;       {The sliding door opens:}
 			For J:=15 to ymax -1 do
 				WriteChar_A( I, J, '³', Whiteonblack ) ;
 			If I>1 then ChillOut( 1 ) ;
-			Case i of
-				1:
-					begin
-						WriteChar_A( 1, 14, 'À', Whiteonblack ) ;
-						WriteChar_A( 1, ymax, 'Ú', Whiteonblack );
-						For J:=15 to ymax - 1 do
-							WriteChar_A( i, j, ' ', Whiteonblack ) ;
-					end ;
-				20:
+			If I=1 then
+				begin
+					WriteChar_A( 1, 14, 'À', Whiteonblack ) ;
+					WriteChar_A( 1, ymax, 'Ú', Whiteonblack );
+					For J:=15 to ymax - 1 do
+						WriteChar_A( i, j, ' ', Whiteonblack ) ;
+				end
+      else
+      	If I=x then
 					Begin
-						WriteChar_A( 20, 14, '¿', Whiteonblack ) ;
-						WriteChar_A( 20, ymax, 'Ù', Whiteonblack ) ;
+						WriteChar_A( x, 14, '¿', Whiteonblack ) ;
+						WriteChar_A( x, ymax, 'Ù', Whiteonblack ) ;
 						For J:=15 to ymax-1 do
-							WriteChar_A( 20, j, '³', Whiteonblack ) ;
-					end ;
+							WriteChar_A( x, j, '³', Whiteonblack ) ;
+					end
 				else
 					begin
 						WriteChar_A( i, 14, 'Ä', Whiteonblack ) ;
@@ -707,8 +826,19 @@ Begin
 						For J:=15 to ymax - 1 do
 							WriteChar_A( i, j, ' ', Whiteonblack ) ;
 					end ;
-			end ; {Da CASE}
 		end ; {Da For}
+end ;
+
+
+Function WriteMenu:Integer ;
+
+Var I, J, Ymax, opt:Integer ;
+
+Begin
+	Ymax:=18 ;
+	If Response > 0 then Inc( Ymax ) ;
+	If User[ ID ].ExtendedPrivileges then ;
+  MenuAnimation( YMax, 20 ) ;
 	WriteStr( 1, 15, 'Post Message' ) ;
 	WriteStr( 1, 16, 'Abort' ) ;
 	WriteStr( 1, 17, 'Continue' ) ;
@@ -746,7 +876,7 @@ end ; {Funct WriteMenu}  {Post, Abort, Continue, (View Original)}
 
 Function ChooseUser( Y:Integer ; Title, Pointer:String ):Integer ;
 
-Var CursPosY, CurrentID, PrintID, endID:Integer ;
+Var CursPosY, CurrentID, OrigID, Delta, PrintID, endID:Integer ;
 		CurrentPerson:Character ;
 		Year, Month, Day, OfWeek:Word ;
 		a:Char ;
@@ -757,11 +887,9 @@ Begin
 	WriteStr( 5, y+6, Pointer ) ;
 	WinUp( 60, y-1, 80, y+1 ) ;
 	WriteStr( 61, y, 'LogName:' ) ;
-
 	EndID := MaxPerson ;
 	CursPosY:=y+6 ;
 	CurrentID:=1 ;
-
 	For I := y+3 to y+9 do
 		begin
 			GotoXY( 14, i ) ;
@@ -803,17 +931,29 @@ Begin
 		While Keypressed do
 			begin
 				Key:=Readkey ;
-				If Key = #0 then
-					Begin
-						Key:=Readkey ;
-						Case Key of
-							UpArrow: Dec( CurrentID ) ;
-							DownArrow: Inc( CurrentID ) ;
-						end ; {Case Statement}
-					end
-				else If Ord( Key ) = Tab then CurrentID:=TypeID( y ) ;
-				If CurrentID > EndID then CurrentID := EndID ;
-				If CurrentID < 1 then CurrentID := 1 ;
+        Case Key of
+        	#0:
+						Begin
+							Key:=Readkey ;
+							Case Key of
+								UpArrow: Delta:=( -1 ) ;
+								DownArrow: Delta:=( 1 ) ;
+							end ; {Case Statement}
+	            OrigID:=CurrentID ;
+	            Repeat
+	            	CurrentID:=CurrentID + Delta ;
+	            Until ( User[ CurrentID ].Status ) or ( CurrentID > EndID ) or
+	            			( CurrentID < 1 ) ;
+	            If ( CurrentID < 1 ) or ( CurrentID > EndID ) then
+	            	CurrentID:=OrigID ;
+						end ;
+          Chr( Tab ):CurrentID:=TypeID( y ) ;
+          #27:
+          	Begin
+            	Key:=#13 ;
+              CurrentID:=2 ;
+            end ;
+        end ; {CASE}
 				CursPosY := y+6 ;
 				For I := y+3 to y+9 do
 					begin
@@ -868,64 +1008,58 @@ end ; {ChooseUser Function}
 Procedure StartMessage ;
 
 Var CurrentID:Integer ;
-		Year, Month, Day, OfWeek:Word ;
 
 Begin
-	CurrentID := ChooseUser( 9, 'Send a Message', 'Send To:' ) ;
 	With CurrentMessage do
 		begin
 			Sender := ID ;
-			Receiver := CurrentID ;
+			Receiver := ChooseUser( 9, 'Send a Message', 'Send To:' ) ;
       Date := GetDateString ;
 		end ;
 	WinUp( 3, 20, 70, 22 ) ;
 	WriteStr( 5, 21, 'Subj:' ) ;
 	CurrentMessage.Title := Readln( 11, 21, 55, Black, Blue, false ) ;
-	For I:= 1 to 3 do
-		WinDown ;
+	For I:= 1 to 3 do WinDown ;
 	TextBackground( Black ) ;
 end ; {StartMessage} {Just for now.}
 
 
-Procedure KillFile( FileName:String ) ;
+Procedure KillFile( Which:Integer ) ;
 
 Begin
-	{$I-}
-		Close( BigHeap ) ;
-	{$I+}
-	Assign( BigHeap, FileName ) ;
-	{$I-}
-		Reset( BigHeap ) ;                        {Dangerous}
-		If IOResult <> 0 then
-			Rewrite( BigHeap ) ;
-		Close( BigHeap ) ;
-	{$I+}
-	Reset( BigHeap ) ;
-	Rewrite( BigHeap ) ;
-	Close( BigHeap ) ;
+	Repeat
+		Rewrite( BigHeap[ Which ] ) ;
+  Until ( IOResult = 0 ) ;
+	Close( BigHeap[ Which ] ) ;
 end ; {KillFile}
 
 
-Procedure SaveToFile( DaMess:Message ) ;  {Adds a message to list}
-
+Procedure SaveToFile( WhichArea:Integer; DaMess:Message ) ;
+																					 {Adds a message to list}
 Begin
-	Reset( BigHeap ) ;
-	Seek( BigHeap, Filesize( BigHeap ) ) ;
-	Write( BigHeap, DaMess ) ;
-  Close( BigHeap ) ;
+	{$I-}
+		Repeat
+			Reset( BigHeap[ WhichArea] ) ;
+	  Until ( IOResult = 0 ) ;
+  {$I+}
+	Seek( BigHeap[ WhichArea], Filesize( BigHeap[ WhichArea ] ) ) ;
+	Write( BigHeap[ WhichArea ], DaMess ) ;
+  Close( BigHeap[ WhichArea ] ) ;
 end ; {SaveToFile Proc}
 
 
-Procedure ReadMessage( Numbah:Integer ) ;
+Procedure ReadMessage( Which, Numbah:Integer ) ;
 
 Begin
-	Reset( BigHeap ) ;
 	{$I-}
-		Seek( BigHeap, Numbah - 1 ) ;
-		Read( BigHeap, CurrentMessage ) ;
+		Repeat
+			Reset( BigHeap[ Which ] ) ;
+    Until ( IOResult = 0 ) ;
+		Seek( BigHeap[Which], Numbah - 1 ) ;
+		Read( BigHeap[Which], CurrentMessage ) ;
 		If IOResult <> 0 then CurrentMessage.Date := 'Empty' ;
 	{$I+}                            {If no messages, 'Empty' is in Date spot}
-	Close( BigHeap ) ;
+	Close( BigHeap[Which] ) ;
 end ; {ReadMessage Proc}
 
 
@@ -950,10 +1084,15 @@ Begin
   	WriteStr( 9, 3, User[ CurrentMessage.Sender ].Name ) ;
 	WriteStr( 3, 4, 'Date: '+CurrentMessage.Date ) ;             {Print date}
 	WriteStr( 3, 5, 'Subj: '+CurrentMessage.Title ) ;						 {TITLE}
+  WriteStr( 23, 4, 'Area (  ): '+AreaName[ Area ] ) ;
+  GotoXY( 29, 4 ) ;
+  If Area<10 then Write( '0' ) ;
+  Write( Area ) ;
 end ; {PrintInfoBox Proc}
 
 Procedure OverView ;   {A future functionality}
 Begin
+	Area:= 1 ;
   Num := 1 ;
 end ; {OverView Proc}
 
@@ -963,59 +1102,16 @@ Var I, J, YMax, Opt:Integer ;
 
 Begin
 	Ymax := 20 ;
-	If User[ ID ].ExtendedPrivileges then Inc( YMax, 2 ) ;
-	For J:= 14 to ymax do
-		For I:= 1 to 12 do
-    	Begin
-				Scrn[ CurrentWin + 1 ].CharMask[ i, j ] := GetChar( i, j ) ;
-        Scrn[ CurrentWin + 1 ].AttribMask[i, j] := GetCharAttrib( i, j ) ;
-      end ;
-	Scrn[ CurrentWin + 1 ].Status := True ;
-	With Scrn[ CurrentWin ] do
-		begin
-			Top:=14 ; Bottom:=YMax ;
-			Left:=1 ; Right:=12 ;
-		end ;
-	For I:= 1 to 12 do
-		Begin
-			WriteChar_a( i, 14, '¿', Whiteonblack ) ;
-			WriteChar_a( i, ymax, 'Ù', whiteonblack ) ;
-			For J:=15 to ymax -1 do
-				WriteChar_a( I, J, '³', Whiteonblack ) ;
-			If I>1 then ChillOut( 1 ) ;
-			Case i of
-				1:
-					begin
-						WriteChar_A( 1, 14, 'À', Whiteonblack ) ;
-						WriteChar_A( 1, ymax, 'Ú', Whiteonblack );
-						For J:=15 to ymax - 1 do
-							WriteChar_A( i, j, ' ', Whiteonblack ) ;
-					end ;
-				12:
-					Begin
-						WriteChar_A( i, 14, '¿', Whiteonblack ) ;
-						WriteChar_A( i, ymax, 'Ù', Whiteonblack ) ;
-						For J:=15 to ymax-1 do
-							WriteChar_A( i, j, '³', Whiteonblack ) ;
-					end ;
-				else
-					begin
-						WriteChar_A( i, 14, 'Ä', Whiteonblack ) ;
-						WriteChar_A( i, ymax, 'Ä', Whiteonblack ) ;
-						For J:=15 to ymax - 1 do
-							WriteChar_A( i, j, ' ', Whiteonblack ) ;
-					end ;
-			end ; {Da CASE}
-		end ; {Da For}
+	If User[ ID ].ExtendedPrivileges then Inc( YMax ) ;
+  MenuAnimation( YMax, 12 ) ;
 	WriteStr( 1, 15, 'Respond' ) ;
 	WriteStr( 1, 16, 'Continue' ) ;
 	WriteStr( 1, 17, 'Search' ) ;     {Standard choices}
 	WriteStr( 1, 18, 'Search More' ) ;
-	WriteStr( 1, 19, 'Exit' ) ;
+	WriteStr( 1, ymax-1, 'Exit' ) ;
 	If User[ ID ].ExtendedPrivileges then
 		begin
-			WriteStr( 1, 20, 'Delete' ) ;    {Additional Ext. Access Choices}
-      WriteStr( 1, 21, 'Filter' ) ;
+			WriteStr( 1, 19, 'Delete' ) ;    {Additional Ext. Access Choices}
 		end ;
 	Opt := 1;
 	Repeat
@@ -1037,18 +1133,20 @@ Begin
 			end ; {While}
 	Until Ord( Key ) = 13 ;
 	WinDown ;
+  If ( User[ ID ].ExtendedPrivileges ) and ( Opt = 6 ) then Opt := 0 ;
+  If ( Not User[ID].ExtendedPrivileges ) and ( Opt=5 ) then Opt := 0 ;
 	Case Opt of
+  	0:ViewMenu:='x' ;
 		1:ViewMenu:='r' ;
 		3:ViewMenu:='s' ;
 		5:ViewMenu:='x' ;
 		4:ViewMenu:='g' ;      {These are undocumented key shortcuts!!!}
-		6:ViewMenu:=Del ;
-    7:ViewMenu:='f'
+		5:ViewMenu:=Del ;
 		else ViewMenu:= ' ' ;
 	end ;
 end ; {Function ViewMenu}
 
-Procedure RemoveMessage( Which:Integer ) ;
+Procedure RemoveMessage( Whicha, Whichm:Integer ) ;
 
 Var I:Integer ;          {Deletes a certain message out of the list}
 		Swap:Message ;
@@ -1058,20 +1156,24 @@ Begin
 	Sure := AreYouSure( 'Remove Message? This is NOT Undoable.' ) ;
 	If Sure then
 		begin
-    	Reset( BigHeap ) ;
-			I:=FileSize( BigHeap ) - 1 ;
-			If Which < I then
-				For I:= Which-1 to FileSize( BigHeap ) - 2 do
+      {$I-}
+      	Repeat
+		    	Reset( BigHeap[ Whicha ] ) ;
+        Until ( IOResult = 0 ) ;
+      {$I+}
+			I:=FileSize( BigHeap[ Whicha ] ) - 1 ;
+			If Whichm < I then
+				For I:= Whichm-1 to FileSize( BigHeap[ Whicha ] ) - 2 do
 					begin
-						Seek( BigHeap, I+1 ) ;
-						Read( BigHeap, Swap ) ;
-						Seek( BigHeap, I ) ;
-						Write( BigHeap, Swap ) ;
+						Seek( BigHeap[Whicha], I+1 ) ;
+						Read( BigHeap[Whicha], Swap ) ;
+						Seek( BigHeap[Whicha], I ) ;
+						Write( BigHeap[Whicha], Swap ) ;
 					end ;
-			Seek( BigHeap, FileSize( BigHeap ) - 1 ) ;
-			Truncate( BigHeap ) ;
+			Seek( BigHeap[whicha], FileSize( BigHeap[whicha] ) - 1 ) ;
+			Truncate( BigHeap[whicha] ) ;
 			Dec( Num ) ;
-      Close( BigHeap ) ;
+      Close( BigHeap[Whicha] ) ;
 		end ; {If user sayz OKAY}
 end ; {Remove Message}
 
@@ -1079,29 +1181,27 @@ Function SearchMessages( Scope:boolean; What:String; Where, Who:integer ):Intege
 
 Var Found:Boolean ;            {The Search Engine C1995 Josh Curtiss}
 		Temp:String[ 54 ] ;
-		MaxNumAllowed, Orig, I, J, K:Integer ;
+		MaxNumAllowed, I, J, K:Integer ;
 
 Begin
-	Reset( BigHeap ) ;
-  MaxNumAllowed:=Filesize( BigHeap ) ;
-  Close( BigHeap ) ;
-	Found:=False ; Orig:=Num ;
+	{$I-}
+		Repeat
+			Reset( BigHeap[Area] ) ;
+	  Until ( IOResult = 0 ) ;
+  {$I+}
+	MaxNumAllowed:=Filesize( BigHeap[AREA] ) ;
+  Close( BigHeap[AREA] ) ;
+	Found:=False ;
 	If Scope = True then Num:=0 ;
 	Repeat
 		DisplayTime( TimePosX, TimePosY, True, False, True ) ;
 		Inc( Num ) ;
-		ReadMessage( Num ) ;
+		ReadMessage( Area, Num ) ;
 		Case Where of
 			1:If CurrentMessage.Receiver = Who then Found:=True ;
 			2:If CurrentMessage.Sender = Who then Found:=True ;
 			3:If CurrentMessage.Date = What then Found := True ;
-			5:For I:=1 to 54 - Length( What ) do
-					Begin
-						Temp:='' ;
-						For J:= i to i + Length( What ) - 1 do
-							Temp := Temp + CurrentMessage.Title[ J ] ;
-						If Temp = What then Found := True ;
-					end ; {Check all SUBJ line}
+			5:If Pos( What, CurrentMessage.Title ) > 0 then Found := True ;
 			4:For K:= 7 to 24 do
 					If not found then
 						For i:= 2 to 78 - Length( What ) do
@@ -1115,21 +1215,17 @@ Begin
 	Until Found or ( Num > MaxNumAllowed ) ;
 	If Num > MaxNumAllowed then
 		begin
-			If Searched or not Scope then
-				FYI( 'You Moron! There are no more entries with that!' )
-			else
-				FYI( 'You Moron! There are no entries with that!' ) ;
-			Num:=Orig ;
-		end ;
-	If Num = Orig then Searched:=False
-	else Searched:=True ;
+      Num:=0 ;
+      Searched:=False ;
+    end
+  else Searched:=True ;
 	SearchMessages:=Num ;
 end ; {SearchMessages Function}
 
 Procedure Search ;
 
 Var Key:Char ;
-		Opt, i, j:Integer ;
+		Opt, i, j, Orig:Integer ;
     TempStr:String ;
 		Place:Array[ 1..5 ] of String[ 18 ] ;
 
@@ -1232,6 +1328,7 @@ Begin
 							else
 								Temp.Right := 45 ;
 							TempStr:=Readln( 35, 13, Temp.Right-36, Blue, Green, true ) ;
+              HiLite( 35, 13, Black, 43 ) ;
               Key := Chr( Tab ) ;
 							J:=78 ;
 							What:='' ;
@@ -1261,7 +1358,11 @@ Begin
 						If Key = #0 then Key:=Readkey ;
 						Case key of
 							#27:Opt:=5 ;
-							Chr( Tab ):HiLite( 35, 13, Black, 43 ) ;
+							#13, Chr( Tab ):
+								begin
+									HiLite( 35, 13, Black, 43 ) ;
+                  If key = #13 then Key:=Chr( Tab ) ;
+                end ;
 							DownArrow:If Where=3 then Dec( Date[ i ] ) ;
 							UpArrow:If Where=3 then Inc( Date[ i ] ) ;
 							LeftArrow:If Where=3 then Dec( i ) ;
@@ -1271,10 +1372,10 @@ Begin
 	  					begin
 		  					If (Key=LeftArrow) or (Key=RightArrow) or
 			  					 (Ord(Key)=Tab) or (Key=#13) then
-                   begin
+                	begin
   	  		  	      HiLite( 35, 13, Black, 10 ) ;
-                     For J:= 35 to 77 do WriteChar( J, 13, ' ' ) ;
-                   end ;
+                    For J:= 35 to 77 do WriteChar( J, 13, ' ' ) ;
+                  end ;
       					If I>3 then I:=1
 			      		else If I<1 then I:=3 ;
        					If Date[ 3 ] < 1994 then Date[ 3 ] := 1994
@@ -1290,15 +1391,16 @@ Begin
    							Write( Date[ 1 ], '-' ) ;
 							  If Date[ 2 ] < 10 then Write( ' ' ) ;
 						  	Write( Date[ 2 ], '-', Date[ 3 ] ) ;
-					  		If (Key=Uparrow) or (Key=downarrow) then
-				  				begin
-		  							WriteStr( timeposx, timeposy, '          ' ) ;
-	  								GotoXY( timeposx, timeposy ) ;
-  									What := '' ;
+                If (Key=UpArrow) or (Key=DownArrow) or (Key=Chr(Tab)) then
+                	begin
+  									WriteStr( timeposx, timeposy, '          ' ) ;
+ 										GotoXY( timeposx, timeposy ) ;
+										What := '' ;
 									  Write( Date[1],'-',Date[2],'-',Date[3] ) ;
 								  	For j:=timeposx to timeposx+9 do
-							  			What:=What+GetChar( j, Timeposy ) ;
-						  		end ;
+							  			If GetChar( j, TimePosY) <> ' ' then
+												What:=What+GetChar( j, Timeposy ) ;
+                  end ;
 					  		Case i of
 				  				1:HiLite( 35, 13, Blue, 2 ) ;
 			  					2:Hilite( 38, 13, Blue, 2 ) ;
@@ -1306,7 +1408,6 @@ Begin
 	  						end ; {cAse}
   						end ; {IF TIME}
 					end ; {If Keypressed}
-          HiLite( 35, 13, Black, 43 ) ;
 				end ; {Case #3}
 			4, 5:
 				begin
@@ -1343,10 +1444,24 @@ Begin
             end ;
         end ; {CASE}
 			end ;
+  	If (Key=#13) and (Opt=4) then
+    	begin
+      	Orig:=Num ;
+        Num:=SearchMessages( SearchAll, What, Where, Who ) ;
+        If Num=0 then
+        	begin
+	        	If Searched or SearchAll=False then
+							FYI( 'You Moron! There are no more entries with that!' )
+						else
+							FYI( 'You Moron! There are no entries with that!' ) ;
+						Num:=Orig ;
+            HiLite( 54, 16, Black, 8 ) ;
+            Opt:=3 ;
+          end ;
+      end ; {User Chooses to Search}
 	Until (Key = #13) and ( (Opt=4) or (Opt=5) ) ;
-	If Opt=4 then Num:=SearchMessages( SearchAll, What, Where, Who ) ;
 	WinDown ;
-end ;
+end ; {Search PROC}
 
 Procedure WriteMessage( Response:Integer ) ;
 
@@ -1357,17 +1472,18 @@ Var I, J, Option:Integer ;
 
 Begin
 	If Response <= 0 then
-		StartMessage
+  	Begin
+			StartMessage ;
+      If Pos( Chr( 27 ), CurrentMessage.Title ) > 0 then Exit ;
+    end
 	else
 		Begin
-			a:='   ' ;
-			For I:=1 to 3 do A[i] := CurrentMessage.Title[i] ;
-			If a <> 'Re:' then
-				begin
-					a := 'Re: ' ;
-					For I:= 5 to 54 do A := a + CurrentMessage.Title[ i-4 ] ;
-					CurrentMessage.Title := a ;
-				end ;
+			If Copy( CurrentMessage.Title, 1, 3 ) <> 'Re:' then
+				With CurrentMessage do
+					begin
+          	Delete( Title, Length(Title)-3, 4 ) ;
+          	Title:='Re: '+Title ;
+					end ;
 			CurrentMessage.Receiver := CurrentMessage.Sender ;
 			CurrentMessage.Sender := ID ;
       CurrentMessage.Date:=GetDateString ;
@@ -1389,8 +1505,7 @@ Begin
 							For J:= 7 to 24 do
 								For I:= 2 to 78 do
 									CurrentMessage.Message[ I, J ] := GetChar( I, J ) ;
-              Filter ; {CurrentMessage}
-							SaveToFile( CurrentMessage ) ;
+							SaveToFile( area, CurrentMessage ) ;
 						end ; {IF SURE}
 				end ;
 			2: {Abort}
@@ -1405,9 +1520,8 @@ Begin
 							Temp.CharMask[ I, J ] := GetChar( I, J ) ;
 					WinDown ;
 					WinDown ;
-					Repeat
+					While Not KeyPressed do
 						DisplayTime( TimePosX, TimePosY, True, False, True ) ;
-					Until Keypressed ;
 					WinUp (1, 1, 63, 6 ) ;
 					WinUp( 1, 6, 79, 25 ) ;
 					For J:= 25 downto 1 do
@@ -1428,7 +1542,7 @@ Var I, J, PrevNum:Integer ;
 		Key:Char ;
 
 Begin
-	ReadMessage( 1 ) ;
+	ReadMessage( Area, 1 ) ;
 	If CurrentMessage.Date <> 'Empty' then
 		begin
 			PrevNum := 0 ;
@@ -1439,15 +1553,12 @@ Begin
 				DisplayTime( TimePosx, TimePosy, True, False, True ) ;
 				If PrevNum <> Num then
 					begin
-						ReadMessage( Num ) ;
+						ReadMessage( area, Num ) ;
 						PrintInfoBox ;
 						For J:= 7 to 24 do
 							For I:= 2 to 78 do
-								begin
-									Key := GetChar( I, J ) ;
-									If CurrentMessage.Message[ I, J ] <> Key then
-										WriteChar( i, j, CurrentMessage.Message[ I, J ] ) ;
-								end ;
+								If CurrentMessage.Message[ I, J ] <> GetChar( i, j ) then
+									WriteChar( i, j, CurrentMessage.Message[ I, J ] ) ;
 					end ;
 				GotoXY( 1, 1 ) ;
 				Key := ' ' ;
@@ -1463,22 +1574,23 @@ Begin
 					Del:
 						Begin
 							If User[ ID ].ExtendedPrivileges then
-								RemoveMessage( Num ) ;
-              ReadMessage( 1 ) ;
+								RemoveMessage( Area, Num ) ;
+              ReadMessage( area, 1 ) ;
               If CurrentMessage.Date = 'Empty' then Key:='x' ;
-            end ;
-          'f', 'F':
-						begin
-							Filter ;
-              Reset( BigHeap ) ;
-              Seek( BigHeap, Num-1 ) ;
-              Write( BigHeap, CurrentMessage ) ;
-              Close( BigHeap ) ;
-              PrevNum:=Num-1 ;
             end ;
 					's', 'S': Search ;
 					'g', 'G':
-						If Searched then Num:=SearchMessages( False, What, Where, who )
+						If Searched then
+							begin
+								Response:=Num ; {Improper usage to save var mem}
+								Num:=SearchMessages( False, What, Where, who ) ;
+                If Num=0 then
+                	begin
+                  	Num:=Response ;
+										FYI( 'You Moron! There are no more entries with that!' )
+                  end
+                else Response:=0 ;
+              end
 						else Search ;
 					'r', 'R':
 						begin
@@ -1487,10 +1599,10 @@ Begin
 							Response:=0 ;
 						end ;
 				end ; {Case}
-				Reset( BigHeap ) ;
-				If Num > FileSize( BigHeap ) then Num:=FileSize( BigHeap ) ;
+				Reset( BigHeap[area] ) ;
+				If Num > FileSize( BigHeap[area] ) then Num:=FileSize( BigHeap[area] ) ;
 				If Num < 1 then Num := 1 ;
-        Close( BigHeap ) ;
+        Close( BigHeap[area] ) ;
 			Until ( Key = 'x' ) or ( Key = 'X' ) ;
       WinDown ;
       WinDown ;
@@ -1499,7 +1611,97 @@ Begin
 		FYI( 'There are no messages to read!' ) ;  {If empty}
 end ; {ViewMessage Proc}
 
-Procedure EditUsers( FileName:String ) ; {Requires extended access}
+Procedure SaveSettings( ChangeUsers, ChangeAreas, ChangeMisc:Boolean ) ;
+
+Var J, K, I, SizeOfFile:Integer ;
+		TempStr:String ;
+		Change:Boolean ;
+
+Begin
+	If ChangeUsers then
+  	Begin
+		  Change:=false ;
+			WinUp( 20, 9, 50, 13 ) ;
+		  WriteStr( 24, 11, 'Making User Changes...' ) ;
+			{$I-}
+				Repeat
+					Rewrite( UserHeap ) ;
+    	  Until ( IOResult = 0 ) ;
+      {$I+}
+			Reset( UserHeap ) ;
+			For K:=1 to UserMax do
+				begin
+					Write( UserHeap, User[k] ) ;
+          If k mod 6=0 then DisplayTime(timeposx,timeposy,true,false,true) ;
+      	end ;
+			Close( UserHeap ) ;
+		  For j:=1 to AreaMax do
+		  	begin
+				  {$I-}
+						Repeat
+							Reset( BigHeap[j] ) ;
+            Until ( IOResult = 0 ) ;
+          {$I+}
+				  Sizeoffile:=FileSize( BigHeap[j] ) ;
+				  K:=0 ;
+				  Repeat
+				  	Inc( k ) ;
+				    DisplayTime( TimePosX, TimePosY, True, False, True ) ;
+				    If User[ k ].Status = False then
+							If SizeOffile > 0 then
+								For I:=1 to sizeoffile do
+					        begin
+					          Change:=false ;
+					          Readmessage( j, i ) ;
+					          If CurrentMessage.Receiver = k then
+											begin
+												CurrentMessage.Receiver:=2 ;
+					              Change:=true ;
+					            end ;
+					          If CurrentMessage.Sender = k then
+											begin
+												CurrentMessage.Sender:=2 ;
+					              Change:=true ;
+					            end ;
+					          If Change then
+											begin
+												Reset( BigHeap[j] ) ;
+												Seek( BigHeap[j], i-1 ) ;
+					          		Write( BigHeap[j], CurrentMessage ) ;
+					            end ;
+					        end ; {for to do to every message}
+		  		Until k = UserMax ;
+          Repeat
+          	Reset( BigHeap[j] ) ;
+          Until ( IOResult = 0 ) ;
+          Close( BigHeap[j] ) ;
+		    end ; {For to do to every area}
+		  WinDown ;
+    end ; {If ChangeUsers}
+{	If ChangeAreas then}
+	If ChangeMisc then
+  	Begin
+			WinUp( 20, 9, 50, 13 ) ;
+		  WriteStr( 24, 11, 'Making Misc Changes...' ) ;
+    	TempStr:='' ;
+     	For I:=1 to Tone Div 100 do TempStr:=TempStr+'t' ;
+      {$I-}
+				Repeat
+					Reset( PrefHeap ) ;
+	      Until ( IOResult = 0 ) ;
+      {$I+}
+			Seek( PrefHeap, AreaMax ) ;
+      Write( PrefHeap, TempStr ) ;
+      TempStr:='' ;
+      For I:=1 to SSndLen do TempStr:=TempStr+'d' ;
+			Seek( PrefHeap, AreaMax + 1 ) ;
+      Write( PrefHeap, TempStr ) ;
+      Close( PrefHeap ) ;
+      Windown ;
+    End ; {Change Misc}
+end ; {SaveSettings PROC}
+
+Procedure EditUsers ; {Requires extended access}
 
 Var Sizeoffile, K, i, j, PrevTop, UserTop, Selector:Integer ;
 		Key:Char ;
@@ -1583,12 +1785,15 @@ Begin
 				Case key of
 					UpArrow:Dec( Selector ) ;
 					DownArrow:Inc( Selector ) ;
+          PgUp:Dec( UserTop, 9 ) ;
+          PgDn:Inc( UserTop, 9 ) ;
 					Del:
 						begin
 							User[ Selector-12+UserTop ].Status :=
 																		Not User[ Selector-12+UserTop ].Status ;
 							Change:=True ;
 						end ;
+          Chr( Tab ): Key := #27 ;
 					#13:
 						begin
 							J:=2 ;
@@ -1693,57 +1898,122 @@ Begin
 				If UserTop < 1 then UserTop:=1 ;
 				If UserTop > UserMax-8 then UserTop:=UserMax-8 ;
 			end ; {If Keypressed}
-		If Key = #27 then
-			Begin
-				Sure:=False ;
-				Sure:=AreYouSure( 'All changes must be finalized. If not, you may cause errors.' ) ;
-				If Not Sure then Key:=' ' ;
-				Change:=True ;
-			end ;
 	Until Key = #27 ;
-	For I:= 20 downto 12 do Hilite( 2, i, Black, 77 ) ;
-  WinDown ;
-  Change:=false ;
-	WinUp( 20, 9, 55, 13 ) ;
-  WriteStr( 26, 11, 'Making Changes...' ) ;
-	Rewrite( UserHeap ) ;
-	Reset( UserHeap ) ;
-	For K:=1 to UserMax do
-		begin
-			Write( UserHeap, User[k] ) ;
-		end ;
-	Close( UserHeap ) ;
-  Reset( BigHeap ) ;
-  Sizeoffile:=FileSize( BigHeap ) ;
-  K:=0 ;
-  Repeat
-  	Inc( k ) ;
-    DisplayTime( TimePosX, TimePosY, True, False, True ) ;
-    If User[ k ].Status = False then
-			For I:=1 to sizeoffile do
-        begin
-          Change:=false ;
-          Readmessage( i ) ;
-          If CurrentMessage.Receiver = k then
-						begin
-							CurrentMessage.Receiver:=2 ;
-              Change:=true ;
-            end ;
-          If CurrentMessage.Sender = k then
-						begin
-							CurrentMessage.Sender:=2 ;
-              Change:=true ;
-            end ;
-          If Change then
-						begin
-							Reset( BigHeap ) ;
-							Seek( BigHeap, i-1 ) ;
-          		Write( BigHeap, CurrentMessage ) ;
-            end ;
-        end ; {for to do to every message}
-  Until k = UserMax ;
   WinDown ;
 end ; {Edit Users Proc}
+
+Procedure EditMisc ;
+
+Var OPT:Byte ;
+
+Begin
+  WinUp( 10, 7, 70, 15 ) ;
+  BorderMohn( 10, 11, 70, 15, Black, White ) ;
+  WriteStr( 20, 9, 'Tone:' ) ;
+  WriteStr( 15, 13, 'Startup Sound:' ) ;
+  WriteStr( 44, 13, 'T: Test Startup Sound' ) ;
+  Opt:=1 ;
+  Repeat
+  	GotoXY( 35, 9 ) ;
+    If Tone Div 100 < 10 then Write( ' ' ) ;
+    Write( Tone div 100, '.  ' ) ;
+    GotoXY( 35, 13 ) ;
+    If SSndLen < 10 then Write( ' ' ) ;
+    Write( SSndLen, '.  ' ) ;
+    HiLite( 35, 9, Black, 2 ) ;
+    Hilite( 35, 13, Black, 2 ) ;
+    Case Opt of
+    	1:HiLite( 35, 9, Blue, 2 ) ;
+      2:HiLite( 35, 13, Blue, 2 ) ;
+    end ; {CASE}
+    While NOT Keypressed do
+			DisplayTime( TimePosx, TimePosy, True, False, True ) ;
+    Key:=Readkey ;
+    If Key=#0 then Key:=Readkey ;
+    Case Key of
+    	UpArrow:
+				If Opt=1 then Inc( Tone, 100 )
+        else If Opt=2 then Inc( SSndLen ) ;
+      DownArrow:
+				If Opt=1 then Dec( Tone, 100 )
+        else If Opt=2 then Dec( SSndLen ) ;
+      PgUp:If Opt=1 then Inc( Tone, 1000 ) ;
+      PgDn:If Opt=1 then Dec( Tone, 1000 ) ;
+      Chr( Tab ):Inc( Opt ) ;
+      #15 {Shift-Tab}:Dec( Opt ) ;
+    	'T', 't':If Opt=2 then StartSound( SSndLen ) ;
+    end ; {CASE}
+    If Opt>2 then Opt:=1
+    else if Opt<1 then Opt:=2 ;
+    If Tone<0 then Tone:=0
+    else If Tone > 7500 then Tone:=7500 ;
+    If SSndLen < 0 then SSndLen := 0
+    else If SSndLen > 30 then SSndLen := 30 ;
+    If Opt=1 then
+			Begin
+				Sound( Tone ) ;
+		    Delay( 1 ) ;
+		    NoSound ;
+  		end ;
+  Until( Key = #13 ) or ( Key = #27 ) ;
+  WinDown ;
+end ; {EDITMISC Proc}
+
+Procedure EditSettings ;
+
+Var Change:Array[ 1..3 ] of Boolean ;
+		Key:Char ;
+    Opt:Byte ;
+
+Begin
+	WinUp( 3, 2, 23, 8 ) ;
+  For Opt := 3 downto 1 do Change[ Opt ] := False ;
+  WriteStr( 4, 3, 'Edit Users' ) ;
+  WriteStr( 4, 4, 'Edit Message Areas' ) ;
+  WriteStr( 4, 5, 'Edit Miscellaneous' ) ;
+  WriteStr( 4, 6, 'Save Changes' ) ;
+  WriteStr( 4, 7, 'Cancel, Don''t Save' ) ;
+  Repeat
+		HiLite( 4, Opt+2, Blue, 19 ) ;
+    DisplayTime( TimePosX, TimePosY, True, False, True ) ;
+    If KeyPressed then
+    	Begin
+      	Key:=Readkey ;
+        If Key=#0 then
+					begin
+						Key:=Readkey ;
+            If ( Key = UpArrow ) or ( Key = DownArrow ) then
+            	HiLite( 4, Opt+2, Black, 19 ) ;
+          end ;
+        Case Key of
+        	UpArrow:Dec( Opt ) ;
+          DownArrow:Inc( Opt ) ;
+          #27:Opt:=5 ;
+          #13:
+						Begin
+              If Opt<4 then Change[ Opt ] := True ;
+							Case Opt of
+          			1:EditUsers ;
+{                2:EditM_Areas ;}
+                3:EditMisc ;
+                4:If AreYouSure( 'All changes must be final. ' +
+										'If not, you may get shot.' ) then
+											SaveSettings( Change[1], Change[2], Change[3] ) ;
+                5:Begin
+                		If Change[ 1 ] then GetUsers ;
+                    If ( Change[ 2 ] ) or ( Change[ 3 ] ) then
+                    	GetPrefs ;
+                	end ; {If Cancel}
+          		end ; {CASE of OPT}
+            end ; {Case #13}
+        end ;{Case}
+        If Opt>5 then Opt:=1
+        else if Opt<1 then Opt:=5 ;
+      end ; {KeyPress}
+  Until ( Key = #13 ) and ( (Opt=4) or (Opt=5) ) ;
+  WinDown ;
+End ; {Edit Settings PROC}
+
 
 Function MainMenu:Integer ;	{I got this procedure ALL right on first try}
 
@@ -1759,7 +2029,7 @@ Begin
   WriteStr( 42, 16, 'View Messages' ) ;
   If User[ ID ].ExtendedPrivileges then
   	begin
-    	WriteStr( 42, 17, 'Edit/View Users' ) ;
+    	WriteStr( 42, 17, 'Edit Settings' ) ;
       WriteStr( 42, 18, 'Wipe Messages' ) ;
     end ;
   WriteStr( 42, y-1, 'Quit (No!)' ) ;
@@ -1786,7 +2056,39 @@ Begin
 	MainMenu := Opt ;
 end ; {MainMenu FUNCT}
 
-{                           Main:                                            }
+Function ChooseArea:Integer ;
+
+Var a:integer ;
+    Key:Char ;
+
+Begin
+	a:=Area ;
+	WinUp( 5, 20, 20, 22 ) ;
+	WriteStr( 6, 21, 'Wipe Area' ) ;
+  WriteChar( 18, 21, '.' ) ;
+	Repeat
+  	TextBackground( Blue ) ;
+    GotoXY( 16, 21 ) ;
+    If a<10 then Write( ' ' ) ;
+    Write( a ) ;
+    TextBackGround( Black ) ;
+    DisplayTime( TimePosX, TimePosY, True, False, True ) ;
+    If KeyPressed then
+    	Begin
+		    Key:=Readkey ;
+		    If Key=#0 then Key:=Readkey ;
+		    If Key=UpArrow then Dec( a )
+		    else If Key=DownArrow then Inc( a ) ;
+		    If A<1 then a:=AreaMax
+    		else If A>AreaMax then a:=1 ;
+      end ;
+  Until ( Key = #13 ) or ( Key = #27 ) ;
+  If Key = #27 then a:=0 ;
+  ChooseArea:=A ;
+end ; {ChooseArea FUNCT}
+
+
+
 
 Begin
 	NazinStart ;
@@ -1799,21 +2101,29 @@ Begin
 					OverView ;
 					ViewMessage( Num ) ;
       	end ;
-      3:EditUsers( NazinDir + 'Users.NZN' ) ;
-      4:If AreYouSure('You don''t really want to destroy all messages.') then
-        	begin
-          	KillFile( NazinDir + 'Messages.NZN' ) ;
-            FYI( 'Your wish is my command. Done. Poof. Happy?' ) ;
-          end
-      	else FYI( 'Good Decision. Erasure has been Cancelled.' ) ;
+      3:EditSettings ;
+      4:Begin
+      		Area:=ChooseArea ;
+          If Area>0 then
+						If AreYouSure('Do you really want to destroy this area?') then
+		        	begin
+	  	        	KillFile( Area ) ;
+	    	        FYI( 'Your wish is my command. Done. Poof. Happy?' ) ;
+	      	    end
+	      		else FYI( 'Good Decision. Erasure has been Cancelled.' )
+          else Area:=1 ;
+          WinDown ;
+    		end ;
     end ; {CASE}
   Until ( Choice = 0 ) ; {Or, if Exit was selected}
 	CloseAllWins ;     {Close up, leave screen how it was in the beginning.}
 	WinUp( 4, 10, 75, 14 ) ;
 	WriteStr(8,12,'Thanks for visiting Nazin. Come back and visit the Emperor!');
 	ChillOut( 199 ) ;
+  If SSndLen > 0 then For I:=1 to 3 do StartSound( 1 ) ;
 	WinDown ;
 	GotoXY( 1, 25 ) ;
+  ChDir( OrigDir ) ;
 end .
 
 {
