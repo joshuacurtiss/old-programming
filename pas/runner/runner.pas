@@ -1,49 +1,36 @@
 Program RunnerWithFeaturesUpDaButt ; {With Password and Password Encryption}
 
-Uses crt, dos, Zakmohn, MenuTool ;
+Uses crt, dos, Zakmohn, MenuTool, ScrnSave ;
 
 Type
-	Win = Record
-		Top:Byte ;
-		Bottom:Byte ;
-		Right:Byte ;
-		Left:Byte ;
-		CharMask:Array[ 1..80, 1..25 ] of Char ;
-    AttribMask:Array[ 1..80, 1..25 ] of Byte ;
-		Status:Boolean ;
-	end ;
-
 	ShortCut = Record
 		Key:String ;
 		Command:String ;
 	end ;
 
-Const NumOfWins = 6   ;  OptMax		 = 15  ;
-			CutMax		= 4   ;  Nothing		= '(Empty)' ;
-			ESC				= #27 ;  AfterDarkTime = 3 {Minutes} ;
+Const NumOfWins = 6   ;		OptMax				= 15  ;
+			CutMax		= 4   ;		Nothing				= '(Empty)' ;
+			ESC				= #27 ;
 
 			Message : Array[ 1..8 ] of String =
       					(	'Life is juicy.',
-                	'''Tastes like chicken.''',
-               		'Better check your hard drive for viruses.',
-                	'This program made for the Oasis of Joy.',
-                	'I''m drunk but I''m sober...',
+                	'"Tastes like chicken."',
+               		'On the Waterfront: "It''s this big festival." -Ibe Merchant',
+                	'Thanks to Kostmohn for input procedure.',
+                	'Markus Bookland: Colored boxes screensaver concept.',
                 	'Always remember: Three rights make a left.',
-                	'Bill Gates: ''640k is enough for anyone.''',
+                	'Bill Gates Quote: "640k is enough for anyone."',
                 	'Mr. Pozzi: The Man, the Myth, the Legend.'	) ;
 
-Var KeyShort:Array[ 1..CutMax ] of ShortCut ;
-		Key:Char ;
-		UserType, PassWord, Command, WhereDaUserBe:String ;
-    MenuOpt:Array[ 1..OptMax ] of String ;
-    WhatToDo:Array[ OptMax+1 .. OptMax*2 ] of String ;
-    f:File of String ;
-    DoCommand:Boolean ;
-    Delta, LenOfType, CursPos, y, i, opt:Byte ;
+Var Key																						:Char ;
+		UserType, PassWord, Command, WhereDaUserBe		:String ;
+		f																							:File of String ;
+    DoCommand																			:Boolean ;
+    Delta, LenOfType, y, i, opt										:Byte ;
+    MenuOpt													:Array[ 1..OptMax ] of String ;
+    WhatToDo												:Array[ OptMax+1 .. OptMax*2 ] of String;
+    KeyShort												:Array[ 1..CutMax ] of ShortCut ;
 
-
-Function WaitForKeypress:Char ; Forward ; {Must have Forward Declaration}
-																					{Since FYI uses it. Talk about l8r}
 
 Procedure FYI( Warning:String ) ;{For Your Info window with only Okay button}
 
@@ -80,6 +67,128 @@ Begin
 	Until ( Key = #13 ) or ( Key = #27 ) ;
 	WinDown ;
 end ; {FYI Proc}
+
+
+Function Att( Back, t:Byte ):Byte ;
+Begin
+	Att := Back*16 + t ;
+end ;
+
+
+Function Dilly(LimLeft,LimRight,y:Byte;s:String;BackCol,CursCol:Byte):String;
+
+Const TextCol = White ;
+
+Var Width, a, c, Delta:Byte ;
+    Letter:Boolean ;
+
+Begin
+  Delta:=0 ;
+	Width := LimRight + 1 - LimLeft ;
+  If Length( s ) >= Width then C:=Width
+  else C:=Length( s ) + 1 ;
+  Repeat
+    For A:=1 to Width do
+     	If A + Delta > Length( s ) then
+				WriteChar_a( LimLeft+A-1, y, ' ', Att( BackCol, TextCol ) )
+      else
+       	WriteChar_a( LimLeft+A-1, y, s[A+Delta], Att( BackCol, TextCol ) ) ;
+      If Delta > 0 then
+				WriteChar_a( LimLeft, y, Chr(17), Att( BackCol, TextCol ) ) ; {<}
+      If Delta + Width < Length( s ) then
+      	WriteChar_a( LimRight, y, Chr(16), Att( BackCol, TextCol ) ) ; {>}
+   	HiLite( LimLeft + C - 1, y, CursCol, 1 ) ;
+
+  	Key := ' ' ;
+    Key := WaitForKeypress ;
+    Sound( 5000 ) ; 				      {Beep when push a key}
+		Delay( 1 ) ;
+		NoSound ;
+
+    If Key = #0 then
+    	Begin
+      	Letter := False ;
+        Key := Readkey ;
+        Case Key of
+					UpArrow, DownArrow, Chr( TAB ): ;
+          #71: {Home}
+          	Begin
+            	Delta := 0 ;
+              C := 1 ;
+            end ;
+          #79: {End}
+          	Begin
+            	If Length(s) > Width then
+              	Begin
+                	Delta := Length(s) + 1 - Width ;
+                  C:=Width ;
+                end
+              else
+              	Begin
+                	C:=Length( s ) + 1 ;
+                  Delta := 0 ;
+                end ;
+            end ;
+  				Del: {Special Delete}
+          	Begin
+ 							If C+Delta <= Length( s ) then Delete( s, C+Delta, 1 ) ;
+            end ;
+          LeftArrow:Dec( C ) ;
+          RightArrow:If C+Delta<=Length( s ) then Inc( c ) ;
+      	end ; {Case}
+      end {If #0}
+    else
+			Begin
+				Letter := True ;
+        Case Key of
+        	ESC, Chr(13), Chr(Tab):Letter := False ;
+          Chr( 8 ):
+          	If ( C > 1 ) or ( Delta > 0 ) then
+							Begin
+								Delete( s, C+Delta-1, 1 ) ;
+      			    Dec( c ) ;
+			        end;
+        	else
+          	If Length( s ) < 255 then
+							Begin
+								Insert( Key, s, C + Delta ) ;
+	  			      Inc( c ) ;
+				      end
+            else
+            	Begin
+              	NoSound ;
+                Sound( 3000 ) ;
+                Delay( 1 ) ;
+                NoSound ;
+              end ;
+        end ;{CASE}
+      end ; {NOT #0}
+
+    If C > Width then
+    	Begin
+      	C:=Width ;
+        Inc( Delta ) ;
+      end
+    else
+			If C<1 then
+      	Begin
+        	C:=1 ;
+          If Delta > 0 then Dec( Delta ) ;
+				end ;
+	Until ( ( Key = #13 ) or ( Key = #27 ) or ( Key = Chr( Tab ) ) or
+				( Key = UpArrow ) or ( Key = DownArrow ) ) and ( Letter=False ) ;
+  Delta := 0 ;
+  For A:=1 to Width do
+   	If A + Delta > Length( s ) then
+			WriteChar_a( LimLeft+A-1, y, ' ', Att( BackCol, TextCol ) )
+    else
+     	WriteChar_a( LimLeft+A-1, y, s[A+Delta], Att( BackCol, TextCol ) ) ;
+  If Delta + Width < Length( s ) then
+   	WriteChar_a( LimRight, y, Chr(16), Att( BackCol, TextCol ) ) ; {>}
+  HiLite( LimLeft + c - 1, y, BackCol, 1 ) ; {Erase Cursor}
+	HiLite( LimLeft, y, Blue, Width ) ; {Just for Runner}
+  Dilly := S ;
+end ; {Dilly Function}
 
 
 Function Readln( LimLeft, y, Len, BackCol, CursCol:Integer ):String ;
@@ -192,7 +301,10 @@ Begin
       If KeyShort[ Row ].Command <> Nothing then
       	Begin
 		    	WriteChar( 12, 12+Row, KeyShort[ Row ].Key[ 1 ] ) ;
-    		  WriteStr( 15, 12+Row, KeyShort[ Row ].Command ) ;
+    		  If Length( KeyShort[Row].Command ) > 55 then
+           	WriteStr( 15, 12+Row, Copy( KeyShort[Row].Command, 1, 54 ) + Chr(16) )
+					else
+						WriteStr( 15, 12+Row, KeyShort[ Row ].Command ) ;
         end ;
     	HiLite( 11, 12+Row, Blue,  3 ) ;
 			HiLite( 15, 12+Row, Blue, 55 ) ;
@@ -210,12 +322,15 @@ Begin
         else
 					If ((Key>'A') and (Key<'Z')) or ((Key>'a') and (Key<'z')) or ( Key = ' ' ) then
 						Begin
-							WriteChar_a( 12, 12+Row, Upcase( Key ), Green*16+White ) ;
+							WriteChar_a( 12, 12+Row, Upcase( Key ), Att( Green, White ) ) ;
               KeyShort[ Row ].Key[ 1 ] := UpCase( Key ) ;
             end ;
       end
     else
-			KeyShort[ Row ].Command := Readln( 15, Row+12, 55, Green, White ) ;
+      If KeyShort[ Row ].Command <> Nothing then
+				KeyShort[ Row ].Command := Dilly( 15, 69, Row+12, KeyShort[ Row ].Command, Green, White )
+      else
+				KeyShort[ Row ].Command := Dilly( 15, 69, Row+12, '', Green, White ) ;
     If Side = Left then Hilite( 11, 12+row, Blue, 3 )
     else HiLite( 15, Row+12, Blue, 55 ) ;
     Case Key of
@@ -261,13 +376,20 @@ Begin
     	If MenuOpt[ i-6 ] <> '(Empty)' then  {Don't show the '(Empty)'}
 				Begin
 					WriteStr( 7, i, MenuOpt[ i-6 ] ) ;
-		      WriteStr( 39, i, WhatToDo[ i-6+OptMax ] ) ;
+		      If Length( WhatToDo[ i-6+OptMax ] ) > 35 then
+						WriteStr( 39, i, Copy(WhatToDo[i-6+OptMax],1,34) + Chr(16) )
+          else
+          	WriteStr( 39, i, WhatToDo[ i-6+OptMax ] ) ;
         end ;
     	HiLite( 7, i, Blue, 67 ) ;
     end ;
   Repeat                         {Side: True is left, Right is False}
 		If Side=True then MenuOpt[ Row ]:=Readln( 7, Row+6, 31, Black, Green )
-    else WhatToDo[ Row+OptMax ]:=Readln( 39, Row+6, 34, Black, Green ) ;
+    else
+			If WhatToDo[Row+OptMax] <> Nothing then
+				WhatToDo[ Row+OptMax ]:=Dilly( 39, 73, Row+6, WhatToDo[Row+OptMax], Black, Green )  {Len=34}
+      else
+				WhatToDo[ Row+OptMax ]:=Dilly( 39, 73, Row+6, '', Black, Green ) ;
     If ( Ord(Key)=Tab ) then Side:=Not Side ;
     If Key = DownArrow then Inc( Row )
     else if key = UpArrow then Dec( Row ) ;
@@ -424,83 +546,6 @@ Begin
 		PassWord[i] := Chr( Ord( PassWord[i] ) - 2 ) ; {Decrypt Password}
 end ; {PROC GetStuffs}
 
-Function AfterDark:Char ;
-
-Var Bob:Char ;          {Once WaitForKeypress decides its been long enuf}
-		TimeToGo:Boolean ;  {since nothing happened, it will start this screen}
-		l, r, u, d:Byte ;		{saver. Displays boxes. Will go till a key is pressed}
-
-Begin
-	TimeToGo := False ;
-	Randomize ;
-	WinUp( 1, 1, 80, 25 ) ; {Capture whole screen before screen saver begins}
-	For r:=1 to 80 do
-		For u:=1 to 25 do
-			With Scrn[ CurrentWin ] do {Write the screen back but keep the big win}
-				WriteChar_a( r, u, CharMask[ r, u ], AttribMask[ r, u ] ) ;
-	Repeat
-		L:=Random( 37 ) +1 ; {Left border MUST be on Left side of screen}
-		Repeat
-			R:=Random( 80 ) ;
-			If Keypressed then
-				Begin
-					Bob:=Readkey ;   {Checking for keypress...}
-					TimeToGo:=True ;
-				end ;
-		Until ( r > l ) or TimeToGo ; {Must be right of left side}
-		U:=Random( 11 ) +1 ;
-		Repeat
-			D:=Random( 25 ) ;
-			If Keypressed then             {Same with up and down}
-				Begin
-					Bob:=Readkey ;
-					TimeToGo:=True ;
-				end ;
-		Until ( d > u ) or TimeToGo ;
-		If NOT TimeToGo then {If no keypress, then...}
-			Begin
-				WinUp( l, u, r, d ) ; {Display the box}
-				Scrn[ Currentwin ].Status := False ; {But kill it without erasing it}
-				Delay( 1 ) ;                         {So it doesn't take up memory. }
-			end ;
-		If Keypressed then
-			Begin
-				Bob:=Readkey ;
-				TimeToGo:=True ;
-			end ;
-	Until TimeToGo ; {Once time to go, restore screen.}
-	WinDown ;
-	AfterDark := Bob ;
-end ;
-
-																{Allows key input and management for a}
-Function WaitForKeypress:Char ;	{screen saver both at same time.      }
-
-Var h1, h2, m1, m2, s1, s2, Hundredths:Word ;
-		ItsTime, SchoolsOut:Boolean ;
-		Hooji:Char ;
-
-Begin
-	ItsTime := False ;
-	SchoolsOut := False ;
-	Repeat
-		GetTime( h1, m1, s1, hundredths ) ; {Get start time}
-		Repeat
-			GetTime( h2, m2, s2, hundredths ) ; {Get time now}
-			If ( (h2=1) and (h1=12) ) or ( h2 > h1 ) then Inc( m2, 60 ) ;
-			Inc( s2, ( m2 - m1 ) * 60 ) ; {Put time in terms of secs}
-			If Keypressed then
-				Begin
-					ItsTime := True ;			{Check for keypress}
-					SchoolsOut := True ;
-				end ;
-		Until ( s2 - s1 > AfterDarkTime * 60 ) or ItsTime ;
-		If ( Not ItsTime ) and ( Not SchoolsOut ) then Hooji := AfterDark ;
-	Until SchoolsOut ;
-	WaitForKeypress := Readkey ;
-end ;
-
-
 Procedure Execute ;
 
 Var D:Integer ;
@@ -523,10 +568,15 @@ Begin
 {$I+}
 					d := IOResult ;
 					If d <> 0 then
-						If d = 3 then      {If can't, say so and get back to Menu}
-							FYI( 'Sorry, '+Copy( Command, 1, i )+' is a Bad Path.' )
+						Case d of      {If can't, say so and get back to Menu}
+							  3:FYI( 'Sorry, '+Copy( Command, 1, i )+' is a Bad Path.' ) ;
+                5:FYI( 'Access is denied to '+Copy( Command, 1, i )+'.' ) ;
+              100:FYI( 'The was a disk read error on '+Copy( Command, 1, Pos( ':', Command ) )+' drive.' ) ;
+            	152:FYI( 'The '+Copy( Command, 1, Pos( ':', Command ) )+' drive is not ready!' ) ;
+              162:FYI( 'Hardware Failure. ('+Copy( Command, 1, Pos( ':', Command ) )+')' ) ;
 						else
 							FYI( 'Sorry, some strange error occurred.' ) ;
+            end ;
 				end ;
 			Command := '/C ' + Command;
 			DoCommand := False ;
@@ -556,6 +606,11 @@ Begin
 							SwapVectors;
 							Exec(GetEnv('COMSPEC'), Command); {Temporarily exit and go to}
 							SwapVectors;                      {the other program}
+              If Keypressed then
+								Begin
+									Key := Readkey ;
+                  If Key = #0 then Key := Readkey ;
+                end ;
 						end ;
 				end ;
 		end ;
@@ -613,8 +668,6 @@ end ;
 
 
 Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
-	CursPos := WhereY + 2 ;
-  If CursPos > 25 then CursPos:=25 ;
   DoCommand := False ;
   GetDir( 0 {Current Drive}, WhereDaUserBe ) ;
 	Initwins ; {Necessary}
@@ -632,6 +685,7 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
 						Command := KeyShort[ i ].Command ;
 					end ;
 			Until ( DoCommand ) or ( I = CutMax ) ;
+    	If DoCommand then Execute ;
 		end {If KeyPressed}
 	else												{Otherwise, do all this crap:}
 		Repeat
@@ -737,8 +791,8 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
               Command:='' ;
             end ;
         end ;
-        If Opt > Y then Opt:=y
-        else If Opt<1 then Opt:=1 ;
+        If Opt > Y then Opt:=1
+        else If Opt<1 then Opt:=y ;
       Until ( Key = #13 ) or ( Key = #67 {F9} ) or ( Key = #27 ) ;
       If Key <> #27 then
       	Begin
@@ -776,7 +830,8 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
   WriteStr( 12, 10, 'Thanks for using Runner!' ) ;
 	Command := WaitForKeypress ; {Press a key to finally leave. If they don't,}
  	CloseAllWins ;							 {screen saver will come up in so many minutes!}
- 	GotoXY( 1, CursPos ) ;
+  For I:=1 to 80 do WriteChar_A( i, 25, ' ', Att( Black, White ) ) ;
+ 	GotoXY( 1, 24 ) ;
   If IOResult <> 0 then
     Writeln( 'Crap, where were we anyway???' ) ;
 end.
