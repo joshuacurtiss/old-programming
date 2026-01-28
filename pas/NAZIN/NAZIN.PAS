@@ -1,6 +1,6 @@
 Program NetNazin ;
 
-Uses CRT, DOS, GRAPH, NZNTools ; {Consts: Tab, Arrows, Pg's, Del, USERMAX}
+Uses CRT, DOS, GRAPH, NZNTools; {Consts: Tab, Arrows, Pg's, Del, USERMAX}
 
 Const NumOfWins = 8  ;  {Max wins}
 			UserMax   = 30 ;  {Max Num of Users allowed}
@@ -11,8 +11,8 @@ Const NumOfWins = 8  ;  {Max wins}
 
 Var Temp:Win ;
 		CurrentMessage:Message ;
-		SSndLen, Tone, Choice, i, j, ID, Num, Response, Where, Who, Area:Integer;
-		NazinDir, OrigDir:String ;
+		Tone, Choice, i, j, ID, Num, Response, Where, Who, Area:Integer ;
+		NazinDir:String ;
 		Key:Char ;
 		What:String[ 54 ] ;
 		AreaName:Array[ 1..AreaMax ] of String ;
@@ -22,25 +22,6 @@ Var Temp:Win ;
     PrefHeap, DatFile:file of String ;									{ }
 		Date:Array[ 1..3 ] of Integer ;
 		User:Array[ 1..UserMax ] of Character ;
-
-Procedure StartSound( L:Byte ) ;
-
-Var I:Byte ;
-
-Begin
-	For I:=1 to 60 do
-  	Begin
-    	Sound( i*100 ) ;
-      Delay( l ) ;
-      NoSound ;
-    end ;
-  For I:=59 downto 1 do
-  	Begin
-    	Sound( i*100 ) ;
-      Delay( l ) ;
-      NoSound ;
-    end ;
-end ;
 
 Procedure IdentifyUser ;			{Get user logon ID}
 
@@ -70,7 +51,7 @@ begin
       2:lkfr:='DAMN'  ;
       3:lkfr:='FUCK'  ; 			{All words to be filtered out}
       4:lkfr:='BITCH' ;
-      5:lkfr:=' HELL ' ;
+      5:lkfr:='HELL ' ;
     end ;
     Temp:='' ;
     For K:=1 to Length( CurrentMessage.Title ) do
@@ -93,7 +74,7 @@ begin
               CurrentMessage.message[ j, k ] := '*' ; {When found, replace}
 				end ; {Checking one line}                            {with *'s}
 	Until l>5 ;
-END ; {Filter PROC}
+END ; {filter PROC}
 
 Procedure FYI( Warning:String ) ;{For Your Info window with only Okay button}
 
@@ -590,12 +571,6 @@ Begin
 				For I:=12 to 69 do WriteChar( i, 18, ' ' ) ;
     	  WriteStr( 12, 18, 'Name: ' ) ;
   	    ChosenName := Readln( 18, 18, 47, Green, Blue, false ) ;
-        If Pos( Chr( 27 ), ChosenName ) > 0 then
-					Begin
-						ID:=2 ;
-						WinDown ;
-						Exit ;
-          end ;
       Until AreYouSure( 'Do you want this as your chosen name?' ) ;
 			While Length( HisLogonID ) < 9 do HisLogOnID := HisLogonID + ' ' ;
       With User[ ID ] do
@@ -647,52 +622,11 @@ Begin
         Seek( PrefHeap, AreaMax ) ;
         Write( PrefHeap, TempStr ) ;
       end ;
-	  Tone:=( Length(TempStr) ) * 100; {Tone is measured by length of string}
-    Seek( PrefHeap, AreaMax + 1 ) ;
-    Read( PrefHeap, TempStr ) ;
-    If IOResult <> 0 then
-    	Begin
-      	TempStr:='Hi!' ;
-        Seek( PrefHeap, AreaMax + 1 ) ;
-        Write( PrefHeap, TempStr ) ;
-      end ;
     Close( PrefHeap ) ;
 	{$I+}
-  SSndLen := Length( TempStr ) ;
+  Tone:=( Length( TempStr ) ) * 100 ; {Tone is measured by length of string}
   If AreaName[ 1 ] = 'Empty' then AreaName[ 1 ]:='General' ; {Temporary}
 end ;
-
-
-Procedure GetDataPNTR ;
-
-Begin
- 	Assign( DatFile, 'DataPNTR.nzn' ) ;
-  {$I-}
-  Repeat
-		Reset( DatFile ) ;
-    If IOResult = 2 then ReWrite( DatFile ) ;
-    Reset( DatFile ) ;
-  Until ( IOResult = 0 ) ;
-  Read( DatFile, NazinDir ) ;
-  If IOResult <> 0 then            {Gives path of data}
-		begin
-			NazinDir := 'C:\NetNAZIN' ;
-		  ReWrite( DatFile ) ;          {If no path file, choose default}
-			Reset( DatFile ) ;            {and put it into the path file}
- 			Write( Datfile, NazinDir ) ;
-    end ;
-  Seek( Datfile, 1 ) ;
-	Read( DatFile, OrigDir ) ;
-  If IOResult <> 0 then            {Gives path of data}
-		begin
-			OrigDir := 'C:\Prog' ;
-			Seek( DatFile, 1 ) ;
-			Write( Datfile, OrigDir ) ;
-    end ;
-  Close( DatFile ) ;
-  {$I+}
-end ;
-
 
 Procedure NazinStart ; {First and foremost to be done}
 
@@ -701,10 +635,22 @@ Var Tempstr:String ;
 Begin
   Area:=1 ;
 	InitWins ; {Necessary ZakTools Init, otherwise windows act funky}
-  {$I-}
-		GetDataPNTR ;
-  {$I+}
-  {$I-}
+   {$I-}
+  	Assign( DatFile, 'DataPNTR.nzn' ) ;
+    Repeat
+			Reset( DatFile ) ;
+	    If IOResult = 2 then ReWrite( DatFile ) ;
+	    Reset( DatFile ) ;
+    Until ( IOResult = 0 ) ;
+    Read( DatFile, NazinDir ) ;
+    If IOResult <> 0 then            {Gives path of data}
+			begin
+				NazinDir := 'C:\NetNAZIN' ;
+			  ReWrite( DatFile ) ;          {If no path file, choose default}
+				Reset( DatFile ) ;            {and put it into the path file}
+  			Write( Datfile, NazinDir ) ;
+      end ;
+    Close( DatFile ) ;
     For I:=1 to AreaMax do
     	Begin
         If I<10 then TempStr:=Chr( i+48 )
@@ -722,7 +668,7 @@ Begin
 				Close( BigHeap[ i ] ) ;
     	end ;
     Assign( PrefHeap, NazinDir + '\Prefs.NZN' ) ;
-		Reset( PrefHeap ) ;
+    Reset( PrefHeap ) ;
     If IOResult = 2 then ReWrite( PrefHeap ) ;
 		Assign( UserHeap, NazinDir+'\Users.NZN' ) ;
 		Reset( UserHeap ) ;
@@ -738,16 +684,15 @@ Begin
 	TextBackground( Black ) ;
 	WinUp( 3, 3, 39, 5 ) ;
 	WriteStr( 5, 4, 'You are feeling very dizzy... ' ) ;
-	ChillOut( 100 ) ;
+	ChillOut( 140 ) ;
 	WinDown ;
 	WinUp( 50, 14, 79, 16 ) ;
 	WriteStr( 52, 15, 'Your head is spinning...' ) ;
-	ChillOut( 100 ) ;
+	ChillOut( 200 ) ;
 	WinDown ;
 	WinUp( 10, 12, 62, 14 ) ;
 	WriteStr( 12, 13, 'And you find yourself in the land of Nazin.' ) ;
-	ChillOut( 155 ) ;
-  StartSound( SSndLen ) ;
+	ChillOut( 275 ) ;
 	WinDown ;
 	TextColor( White ) ;
 	InitWins ;
@@ -780,11 +725,17 @@ Begin
 	Where:=4 ; Who:=2 ; What:=' ';   {Search Vars}
 end ; {NazinStart}
 
-Procedure MenuAnimation( Ymax, x:Integer ) ;
+
+Function WriteMenu:Integer ;
+
+Var I, J, Ymax, opt:Integer ;
 
 Begin
+	Ymax:=18 ;
+	If Response > 0 then Inc( Ymax ) ;
+	If User[ ID ].ExtendedPrivileges then ;
 	For J:=14 to Ymax do
-		For I:=1 to x do
+		For I:=1 to 20 do
     	begin
 				Scrn[ CurrentWin + 1 ].CharMask[i,j] := GetChar( i, j ) ;
         Scrn[ CurrentWin + 1 ].Attribmask[i,j] := GetCharAttrib( i, j ) ;
@@ -795,30 +746,30 @@ Begin
 			Top:=14 ;
 			Bottom:=ymax ;                   {Save stuff underneath menu}
 			Left:=1 ;
-			Right:=x ;
+			Right:=20 ;
 		end ;
-	For I:=1 to x do
+	For I:=1 to 20 do
 		begin
 			WriteChar_A( i, 14, '¿', Whiteonblack ) ;
 			WriteChar_A( i, ymax, 'Ù', Whiteonblack ) ;       {The sliding door opens:}
 			For J:=15 to ymax -1 do
 				WriteChar_A( I, J, '³', Whiteonblack ) ;
 			If I>1 then ChillOut( 1 ) ;
-			If I=1 then
-				begin
-					WriteChar_A( 1, 14, 'À', Whiteonblack ) ;
-					WriteChar_A( 1, ymax, 'Ú', Whiteonblack );
-					For J:=15 to ymax - 1 do
-						WriteChar_A( i, j, ' ', Whiteonblack ) ;
-				end
-      else
-      	If I=x then
+			Case i of
+				1:
+					begin
+						WriteChar_A( 1, 14, 'À', Whiteonblack ) ;
+						WriteChar_A( 1, ymax, 'Ú', Whiteonblack );
+						For J:=15 to ymax - 1 do
+							WriteChar_A( i, j, ' ', Whiteonblack ) ;
+					end ;
+				20:
 					Begin
-						WriteChar_A( x, 14, '¿', Whiteonblack ) ;
-						WriteChar_A( x, ymax, 'Ù', Whiteonblack ) ;
+						WriteChar_A( 20, 14, '¿', Whiteonblack ) ;
+						WriteChar_A( 20, ymax, 'Ù', Whiteonblack ) ;
 						For J:=15 to ymax-1 do
-							WriteChar_A( x, j, '³', Whiteonblack ) ;
-					end
+							WriteChar_A( 20, j, '³', Whiteonblack ) ;
+					end ;
 				else
 					begin
 						WriteChar_A( i, 14, 'Ä', Whiteonblack ) ;
@@ -826,19 +777,8 @@ Begin
 						For J:=15 to ymax - 1 do
 							WriteChar_A( i, j, ' ', Whiteonblack ) ;
 					end ;
+			end ; {Da CASE}
 		end ; {Da For}
-end ;
-
-
-Function WriteMenu:Integer ;
-
-Var I, J, Ymax, opt:Integer ;
-
-Begin
-	Ymax:=18 ;
-	If Response > 0 then Inc( Ymax ) ;
-	If User[ ID ].ExtendedPrivileges then ;
-  MenuAnimation( YMax, 20 ) ;
 	WriteStr( 1, 15, 'Post Message' ) ;
 	WriteStr( 1, 16, 'Abort' ) ;
 	WriteStr( 1, 17, 'Continue' ) ;
@@ -887,9 +827,11 @@ Begin
 	WriteStr( 5, y+6, Pointer ) ;
 	WinUp( 60, y-1, 80, y+1 ) ;
 	WriteStr( 61, y, 'LogName:' ) ;
+
 	EndID := MaxPerson ;
 	CursPosY:=y+6 ;
 	CurrentID:=1 ;
+
 	For I := y+3 to y+9 do
 		begin
 			GotoXY( 14, i ) ;
@@ -931,29 +873,22 @@ Begin
 		While Keypressed do
 			begin
 				Key:=Readkey ;
-        Case Key of
-        	#0:
-						Begin
-							Key:=Readkey ;
-							Case Key of
-								UpArrow: Delta:=( -1 ) ;
-								DownArrow: Delta:=( 1 ) ;
-							end ; {Case Statement}
-	            OrigID:=CurrentID ;
-	            Repeat
-	            	CurrentID:=CurrentID + Delta ;
-	            Until ( User[ CurrentID ].Status ) or ( CurrentID > EndID ) or
-	            			( CurrentID < 1 ) ;
-	            If ( CurrentID < 1 ) or ( CurrentID > EndID ) then
-	            	CurrentID:=OrigID ;
-						end ;
-          Chr( Tab ):CurrentID:=TypeID( y ) ;
-          #27:
-          	Begin
-            	Key:=#13 ;
-              CurrentID:=2 ;
-            end ;
-        end ; {CASE}
+				If Key = #0 then
+					Begin
+						Key:=Readkey ;
+						Case Key of
+							UpArrow: Delta:=( -1 ) ;
+							DownArrow: Delta:=( 1 ) ;
+						end ; {Case Statement}
+            OrigID:=CurrentID ;
+            Repeat
+            	CurrentID:=CurrentID + Delta ;
+            Until ( User[ CurrentID ].Status ) or ( CurrentID > EndID ) or
+            			( CurrentID < 1 ) ;
+            If ( CurrentID < 1 ) or ( CurrentID > EndID ) then
+            	CurrentID:=OrigID ;
+					end
+				else If Ord( Key ) = Tab then CurrentID:=TypeID( y ) ;
 				CursPosY := y+6 ;
 				For I := y+3 to y+9 do
 					begin
@@ -1008,18 +943,21 @@ end ; {ChooseUser Function}
 Procedure StartMessage ;
 
 Var CurrentID:Integer ;
+		Year, Month, Day, OfWeek:Word ;
 
 Begin
+	CurrentID := ChooseUser( 9, 'Send a Message', 'Send To:' ) ;
 	With CurrentMessage do
 		begin
 			Sender := ID ;
-			Receiver := ChooseUser( 9, 'Send a Message', 'Send To:' ) ;
+			Receiver := CurrentID ;
       Date := GetDateString ;
 		end ;
 	WinUp( 3, 20, 70, 22 ) ;
 	WriteStr( 5, 21, 'Subj:' ) ;
 	CurrentMessage.Title := Readln( 11, 21, 55, Black, Blue, false ) ;
-	For I:= 1 to 3 do WinDown ;
+	For I:= 1 to 3 do
+		WinDown ;
 	TextBackground( Black ) ;
 end ; {StartMessage} {Just for now.}
 
@@ -1102,16 +1040,59 @@ Var I, J, YMax, Opt:Integer ;
 
 Begin
 	Ymax := 20 ;
-	If User[ ID ].ExtendedPrivileges then Inc( YMax ) ;
-  MenuAnimation( YMax, 12 ) ;
+	If User[ ID ].ExtendedPrivileges then Inc( YMax, 2 ) ;
+	For J:= 14 to ymax do
+		For I:= 1 to 12 do
+    	Begin
+				Scrn[ CurrentWin + 1 ].CharMask[ i, j ] := GetChar( i, j ) ;
+        Scrn[ CurrentWin + 1 ].AttribMask[i, j] := GetCharAttrib( i, j ) ;
+      end ;
+	Scrn[ CurrentWin + 1 ].Status := True ;
+	With Scrn[ CurrentWin ] do
+		begin
+			Top:=14 ; Bottom:=YMax ;
+			Left:=1 ; Right:=12 ;
+		end ;
+	For I:= 1 to 12 do
+		Begin
+			WriteChar_a( i, 14, '¿', Whiteonblack ) ;
+			WriteChar_a( i, ymax, 'Ù', whiteonblack ) ;
+			For J:=15 to ymax -1 do
+				WriteChar_a( I, J, '³', Whiteonblack ) ;
+			If I>1 then ChillOut( 1 ) ;
+			Case i of
+				1:
+					begin
+						WriteChar_A( 1, 14, 'À', Whiteonblack ) ;
+						WriteChar_A( 1, ymax, 'Ú', Whiteonblack );
+						For J:=15 to ymax - 1 do
+							WriteChar_A( i, j, ' ', Whiteonblack ) ;
+					end ;
+				12:
+					Begin
+						WriteChar_A( i, 14, '¿', Whiteonblack ) ;
+						WriteChar_A( i, ymax, 'Ù', Whiteonblack ) ;
+						For J:=15 to ymax-1 do
+							WriteChar_A( i, j, '³', Whiteonblack ) ;
+					end ;
+				else
+					begin
+						WriteChar_A( i, 14, 'Ä', Whiteonblack ) ;
+						WriteChar_A( i, ymax, 'Ä', Whiteonblack ) ;
+						For J:=15 to ymax - 1 do
+							WriteChar_A( i, j, ' ', Whiteonblack ) ;
+					end ;
+			end ; {Da CASE}
+		end ; {Da For}
 	WriteStr( 1, 15, 'Respond' ) ;
 	WriteStr( 1, 16, 'Continue' ) ;
 	WriteStr( 1, 17, 'Search' ) ;     {Standard choices}
 	WriteStr( 1, 18, 'Search More' ) ;
-	WriteStr( 1, ymax-1, 'Exit' ) ;
+	WriteStr( 1, 19, 'Exit' ) ;
 	If User[ ID ].ExtendedPrivileges then
 		begin
-			WriteStr( 1, 19, 'Delete' ) ;    {Additional Ext. Access Choices}
+			WriteStr( 1, 20, 'Delete' ) ;    {Additional Ext. Access Choices}
+      WriteStr( 1, 21, 'Filter' ) ;
 		end ;
 	Opt := 1;
 	Repeat
@@ -1133,15 +1114,13 @@ Begin
 			end ; {While}
 	Until Ord( Key ) = 13 ;
 	WinDown ;
-  If ( User[ ID ].ExtendedPrivileges ) and ( Opt = 6 ) then Opt := 0 ;
-  If ( Not User[ID].ExtendedPrivileges ) and ( Opt=5 ) then Opt := 0 ;
 	Case Opt of
-  	0:ViewMenu:='x' ;
 		1:ViewMenu:='r' ;
 		3:ViewMenu:='s' ;
 		5:ViewMenu:='x' ;
 		4:ViewMenu:='g' ;      {These are undocumented key shortcuts!!!}
-		5:ViewMenu:=Del ;
+		6:ViewMenu:=Del ;
+    7:ViewMenu:='f'
 		else ViewMenu:= ' ' ;
 	end ;
 end ; {Function ViewMenu}
@@ -1156,11 +1135,7 @@ Begin
 	Sure := AreYouSure( 'Remove Message? This is NOT Undoable.' ) ;
 	If Sure then
 		begin
-      {$I-}
-      	Repeat
-		    	Reset( BigHeap[ Whicha ] ) ;
-        Until ( IOResult = 0 ) ;
-      {$I+}
+    	Reset( BigHeap[ Whicha ] ) ;
 			I:=FileSize( BigHeap[ Whicha ] ) - 1 ;
 			If Whichm < I then
 				For I:= Whichm-1 to FileSize( BigHeap[ Whicha ] ) - 2 do
@@ -1472,10 +1447,7 @@ Var I, J, Option:Integer ;
 
 Begin
 	If Response <= 0 then
-  	Begin
-			StartMessage ;
-      If Pos( Chr( 27 ), CurrentMessage.Title ) > 0 then Exit ;
-    end
+		StartMessage
 	else
 		Begin
 			If Copy( CurrentMessage.Title, 1, 3 ) <> 'Re:' then
@@ -1505,6 +1477,7 @@ Begin
 							For J:= 7 to 24 do
 								For I:= 2 to 78 do
 									CurrentMessage.Message[ I, J ] := GetChar( I, J ) ;
+              Filter ; {CurrentMessage}
 							SaveToFile( area, CurrentMessage ) ;
 						end ; {IF SURE}
 				end ;
@@ -1577,6 +1550,15 @@ Begin
 								RemoveMessage( Area, Num ) ;
               ReadMessage( area, 1 ) ;
               If CurrentMessage.Date = 'Empty' then Key:='x' ;
+            end ;
+          'f', 'F':
+						begin
+							Filter ;
+              Reset( BigHeap[area] ) ;
+              Seek( BigHeap[area], Num-1 ) ;
+              Write( BigHeap[area], CurrentMessage ) ;
+              Close( BigHeap[area] ) ;
+              PrevNum:=Num-1 ;
             end ;
 					's', 'S': Search ;
 					'g', 'G':
@@ -1681,8 +1663,6 @@ Begin
 {	If ChangeAreas then}
 	If ChangeMisc then
   	Begin
-			WinUp( 20, 9, 50, 13 ) ;
-		  WriteStr( 24, 11, 'Making Misc Changes...' ) ;
     	TempStr:='' ;
      	For I:=1 to Tone Div 100 do TempStr:=TempStr+'t' ;
       {$I-}
@@ -1692,12 +1672,7 @@ Begin
       {$I+}
 			Seek( PrefHeap, AreaMax ) ;
       Write( PrefHeap, TempStr ) ;
-      TempStr:='' ;
-      For I:=1 to SSndLen do TempStr:=TempStr+'d' ;
-			Seek( PrefHeap, AreaMax + 1 ) ;
-      Write( PrefHeap, TempStr ) ;
       Close( PrefHeap ) ;
-      Windown ;
     End ; {Change Misc}
 end ; {SaveSettings PROC}
 
@@ -1904,57 +1879,29 @@ end ; {Edit Users Proc}
 
 Procedure EditMisc ;
 
-Var OPT:Byte ;
-
 Begin
-  WinUp( 10, 7, 70, 15 ) ;
-  BorderMohn( 10, 11, 70, 15, Black, White ) ;
+  WinUp( 10, 7, 70, 11 ) ;
   WriteStr( 20, 9, 'Tone:' ) ;
-  WriteStr( 15, 13, 'Startup Sound:' ) ;
-  WriteStr( 44, 13, 'T: Test Startup Sound' ) ;
-  Opt:=1 ;
+  HiLite( 35, 9, Blue, 3 ) ;
   Repeat
   	GotoXY( 35, 9 ) ;
     If Tone Div 100 < 10 then Write( ' ' ) ;
     Write( Tone div 100, '.  ' ) ;
-    GotoXY( 35, 13 ) ;
-    If SSndLen < 10 then Write( ' ' ) ;
-    Write( SSndLen, '.  ' ) ;
-    HiLite( 35, 9, Black, 2 ) ;
-    Hilite( 35, 13, Black, 2 ) ;
-    Case Opt of
-    	1:HiLite( 35, 9, Blue, 2 ) ;
-      2:HiLite( 35, 13, Blue, 2 ) ;
-    end ; {CASE}
     While NOT Keypressed do
 			DisplayTime( TimePosx, TimePosy, True, False, True ) ;
     Key:=Readkey ;
     If Key=#0 then Key:=Readkey ;
     Case Key of
-    	UpArrow:
-				If Opt=1 then Inc( Tone, 100 )
-        else If Opt=2 then Inc( SSndLen ) ;
-      DownArrow:
-				If Opt=1 then Dec( Tone, 100 )
-        else If Opt=2 then Dec( SSndLen ) ;
-      PgUp:If Opt=1 then Inc( Tone, 1000 ) ;
-      PgDn:If Opt=1 then Dec( Tone, 1000 ) ;
-      Chr( Tab ):Inc( Opt ) ;
-      #15 {Shift-Tab}:Dec( Opt ) ;
-    	'T', 't':If Opt=2 then StartSound( SSndLen ) ;
+    	UpArrow:Inc( Tone, 100 ) ;
+      DownArrow:Dec( Tone, 100 ) ;
+      PgUp:Inc( Tone, 1000 ) ;
+      PgDn:Dec( Tone, 1000 ) ;
     end ; {CASE}
-    If Opt>2 then Opt:=1
-    else if Opt<1 then Opt:=2 ;
     If Tone<0 then Tone:=0
     else If Tone > 7500 then Tone:=7500 ;
-    If SSndLen < 0 then SSndLen := 0
-    else If SSndLen > 30 then SSndLen := 30 ;
-    If Opt=1 then
-			Begin
-				Sound( Tone ) ;
-		    Delay( 1 ) ;
-		    NoSound ;
-  		end ;
+    Sound( Tone ) ;
+    Delay( 1 ) ;
+    NoSound ;
   Until( Key = #13 ) or ( Key = #27 ) ;
   WinDown ;
 end ; {EDITMISC Proc}
@@ -2088,7 +2035,7 @@ Begin
 end ; {ChooseArea FUNCT}
 
 
-
+{                           Main:                                            }
 
 Begin
 	NazinStart ;
@@ -2120,10 +2067,8 @@ Begin
 	WinUp( 4, 10, 75, 14 ) ;
 	WriteStr(8,12,'Thanks for visiting Nazin. Come back and visit the Emperor!');
 	ChillOut( 199 ) ;
-  If SSndLen > 0 then For I:=1 to 3 do StartSound( 1 ) ;
 	WinDown ;
 	GotoXY( 1, 25 ) ;
-  ChDir( OrigDir ) ;
 end .
 
 {
