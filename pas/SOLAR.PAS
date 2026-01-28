@@ -19,9 +19,9 @@ Type FigRecType = Record
 		end ;
 
 Var	FigSize, Max, TotalInt, Rec, I, ProcINT, Howdy, Hi:integer;
-		Fig:FigRecType ;
+		Fig, temp:FigRecType ;
 		TotalChar, tempchar:string[200] ;
-		FigFile:File of FigRecType ;
+		FigFile, tempfile:File of FigRecType ;
 		cursor, sure:boolean ;
 		Choice, ProcChar:char ;
 
@@ -55,77 +55,6 @@ Function Comp( Rec1, Rec2:FigRecType; By:Integer ) : Integer ;
     Comp:=a ;
   end ; {Comp funct}
 
-Procedure Sort( By1, By2, By3:Integer ) ;
-
-	Var Rec1, Rec2:FigRecType ;
-			a, b, c, d, e:integer ;
-
-	Begin
-    For A:=0 to ( Filesize( Figfile ) -1 ) do
-      begin
-        C:=A ;
-        Seek( Figfile, C ) ;
-        Read( Figfile, Rec1 ) ;
-        D := A + 1 ;
-        Seek( Figfile, d ) ;
-        Read( Figfile, Rec2 ) ;
-        E:=Comp( Rec1, Rec2, By1 ) ;
-        While( E=1 ) and ( C>=0 ) do
-          begin
-            Switch( c, d, rec1, rec2 ) ;
-            If C>0 then
-              begin
-                Dec( c ) ;
-                Dec( d ) ;
-                Seek( Figfile, C ) ;
-                Read( Figfile, Rec1 ) ;
-                Seek( Figfile, D ) ;
-                Read( Figfile, Rec2 ) ;
-                E:=comp( Rec1, Rec2, By1 ) ;
-              end
-            else E:=0 ;
-          end ;
-        If Comp( Rec1, Rec2, by1 ) = 2 then
-          begin
-            E:=comp( Rec1, rec2, by2 ) ;
-            While( E=1 ) and ( c>=0 ) do
-              begin
-                switch( C, d, rec1, rec2 ) ;
-                If c>0 then
-                  begin
-                    Dec( c ) ;
-                    Dec( d ) ;
-                    Seek( Figfile, c ) ;
-                    Read( Figfile, Rec1 ) ;
-                    Seek( Figfile, d ) ;
-                    Read( Figfile, rec2 ) ;
-                    E:=comp( Rec1, rec2, by2 ) ;
-                  end {IF}
-                else E:=0 ;
-              end ; {WHILE}
-          End ; {If Comp}
-        If Comp( Rec1, Rec2, By1 ) = 2 then
-          begin
-            E:=comp( Rec1, rec2, by3 ) ;
-            While( E=1 ) and ( C>0 ) do
-              begin
-                Switch( C, d, rec1, rec2 ) ;
-                If C>0 then
-                  begin
-                    Dec( c ) ;
-                    Dec( d ) ;
-                    Seek( figfile, c ) ;
-                    Read( Figfile, Rec1 ) ;
-                    Seek( Figfile, d ) ;
-                    Read( Figfile, Rec2 ) ;
-                    E:=comp( Rec1, rec2, by3 ) ;
-                  end
-                else e:=0 ;
-              end ; {WHILE}
-          end ; {If Comp}
-      end {For}
-	end ; {Sort Proc}
-
 Procedure MoveRec( Funct, HowManyTimes:integer; Con:Boolean) ;
 	begin
 		For I := 1 to Howmanytimes do
@@ -146,7 +75,7 @@ Procedure MoveRec( Funct, HowManyTimes:integer; Con:Boolean) ;
         Dec( Rec ) ;
         Seek( Figfile, rec ) ;
         Read( Figfile, fig ) ;
-    Until( Fig.Active=con ) or ( Rec<=0 ) ;
+    Until( Fig.Active=con ) or ( Rec<=0 ) or ( Rec>=max ) ;
 	end ; {MoveRec Proc}
 
 Procedure Menu ;
@@ -271,16 +200,21 @@ Procedure Readchar( x, linenum, lenstr:integer; entry:string ) ;
 	end ; {READINT}
 
 Procedure Hilite( x, linenum, Funct, Len:integer ) ;
-	Begin
-		Gotoxy( x, linenum ) ;
-		If Funct=1
-			then
-				Textbackground( blue )
-			else
-				Textbackground( black ) ;
-		For Hi:=1 to len do
-			Write( ' ' ) ;
-		Gotoxy( x, linenum ) ;
+
+	Var A:Integer ;
+
+  Begin
+    For A:=1 to len do
+      if Funct=1 then
+        begin
+          Mem[ $B800:( (linenum-1)*80+x+a-2 )*2+1 ] := Blue*16 + White ;
+          TextBackground( Blue ) ;
+        end
+      else
+        begin
+          Mem[ $B800:( (linenum-1)*80+x+a-2 )*2+1 ] := White ;
+          TextBackground( Black ) ;
+        end ;
 	End ;
 
 Procedure ClearRecWin ;
@@ -342,22 +276,9 @@ Procedure SureWin ;
 				end ;
 			GotoXY( 1, 1 ) ;
 			Choice:=Readkey ;
+      Hilite( 56, 20, 2, 16 ) ;
 			If ( Ord( Choice ) = 75 ) or ( Ord( Choice ) = 77 ) then
-				begin
-					If Sure = FALSE then
-						begin
-							Hilite( 66, 20, 2, 5 ) ;
-							GotoXY( 67, 20 ) ;
-							Write( 'No' ) ;
-						end
-					else
-						begin
-							Hilite( 56, 20, 2, 5 ) ;
-							Gotoxy( 57, 20 ) ;
-							Write( 'Yes' ) ;
-						end ;
-					Sure := NOT sure ;
-				end ;
+				Sure := NOT sure ;
 		Until Ord( Choice ) = 13 ;
 		TextBackGround( Black ) ;
 	end ;
@@ -440,8 +361,81 @@ Procedure ErrorWin( Message, PrevWinTitle:STRING ) ;
 			Choice:=Readkey ;
 		Until ( Ord( Choice ) = 13 ) ;
 		Hilite( 44, 14, 2, 6 ) ;
-		DisplayRecWin( PrevWinTitle ) ;
+    If PrevWinTitle <> '' then
+		  DisplayRecWin( PrevWinTitle ) ;
 	end ; {ErrorWinProc}
+
+Procedure Sort( By1, By2, By3:Integer ) ;
+
+	Var Rec1, Rec2:FigRecType ;
+			a, b, c, d, e:integer ;
+
+	Begin
+    For A:=0 to ( Filesize( Figfile ) -1 ) do
+      begin
+        C:=A ;
+        Seek( Figfile, C ) ;
+        Read( Figfile, Rec1 ) ;
+        D := A + 1 ;
+        If D =  Filesize( Figfile ) then exit ;
+        Seek( Figfile, d ) ;
+        Read( Figfile, Rec2 ) ;
+        E:=Comp( Rec1, Rec2, By1 ) ;
+        While( E=1 ) and ( C>=0 ) do
+          begin
+            Switch( c, d, rec1, rec2 ) ;
+            If C>0 then
+              begin
+                Dec( c ) ;
+                Dec( d ) ;
+                Seek( Figfile, C ) ;
+                Read( Figfile, Rec1 ) ;
+                Seek( Figfile, D ) ;
+                Read( Figfile, Rec2 ) ;
+                E:=comp( Rec1, Rec2, By1 ) ;
+              end
+            else E:=0 ;
+          end ;
+        If Comp( Rec1, Rec2, by1 ) = 2 then
+          begin
+            E:=comp( Rec1, rec2, by2 ) ;
+            While( E=1 ) and ( c>=0 ) do
+              begin
+                switch( C, d, rec1, rec2 ) ;
+                If c>0 then
+                  begin
+                    Dec( c ) ;
+                    Dec( d ) ;
+                    Seek( Figfile, c ) ;
+                    Read( Figfile, Rec1 ) ;
+                    Seek( Figfile, d ) ;
+                    Read( Figfile, rec2 ) ;
+                    E:=comp( Rec1, rec2, by2 ) ;
+                  end {IF}
+                else E:=0 ;
+              end ; {WHILE}
+          End ; {If Comp}
+        If Comp( Rec1, Rec2, By1 ) = 2 then
+          begin
+            E:=comp( Rec1, rec2, by3 ) ;
+            While( E=1 ) and ( C>0 ) do
+              begin
+                Switch( C, d, rec1, rec2 ) ;
+                If C>0 then
+                  begin
+                    Dec( c ) ;
+                    Dec( d ) ;
+                    Seek( figfile, c ) ;
+                    Read( Figfile, Rec1 ) ;
+                    Seek( Figfile, d ) ;
+                    Read( Figfile, Rec2 ) ;
+                    E:=comp( Rec1, rec2, by3 ) ;
+                  end
+                else e:=0 ;
+              end ; {WHILE}
+          end ; {If Comp}
+      end ; {For}
+	end ; {Sort Proc}
 
 Procedure ViewRecs ;
 	Begin
@@ -454,7 +448,7 @@ Procedure ViewRecs ;
 				Reset( figfile ) ;
 				Seek( Figfile, rec ) ;
 				Read( Figfile, fig ) ;
-        {GotoXY( 1,1 ) ; Write( Rec, '  ' ) ;}
+        GotoXY( 1,1 ) ; Write( Rec, '  ' ) ;
 				If Fig.Active = TRUE then DisplayRecDim( Rec, TRUE )
 				else Inc( Rec ) ;
 			Until ( Fig.Active = TRUE ) or ( Rec >= Max ) ;
@@ -469,6 +463,36 @@ Procedure ViewRecs ;
 			end ; {Case}
 		Until ( Ord(choice) = 13 ) or ( Choice = #27 ) ;
 	end ; {ViewRecs Proc}
+
+Procedure Purge ;
+  begin
+    SureWin ;
+    If Sure=True then
+      begin
+        reset( figfile ) ;
+        Assign( Tempfile, 'c:\jctemp.rec' ) ;
+        {$I-}
+        reset( tempfile ) ;
+        if ioresult <> 0 then rewrite( tempfile ) ;
+        {$I+}
+        reset( Tempfile ) ;
+        Max:=filesize( figfile ) - 1 ;
+        For I := 0 to max do
+          begin
+            read( figfile, fig ) ;
+            If fig.active then write( tempfile, fig ) ;
+          end ; {For do}
+        ReWrite( Figfile ) ;
+        Reset( Tempfile ) ;
+        Max:=filesize( tempfile ) - 1 ;
+        For I := 0 to max do
+          begin
+            Read( tempfile, fig ) ;
+            Write( figfile, fig ) ;
+          end ; {for do}
+        ErrorWin( 'Deleted records have been permenantly removed.', '' ) ;
+      end ; {IF}
+  end ; {Purge Proc}
 
 Procedure Add ;
 	Begin
@@ -485,6 +509,7 @@ Procedure Add ;
 				Readchar( 32, 12, 40, '' ) ;
 				Name:=totalchar ;
 				Hilite( 32, 12, 2, 40 ) ;
+        GotoXY( 32, 12 ) ;
 				Write( name ) ;
 				Hilite( 32, 13, 1, 3 ) ;
 				Readint( 32, 13, 3, 0 ) ;
@@ -549,6 +574,45 @@ Procedure KillRec ;
 				end ; {IF}
 		Until( ( Rec>=0 ) and ( Rec<=max ) ) or ( Ord( Choice ) = 27 ) ;
 	end ;
+
+Procedure Ressurect ;
+  begin
+    DisplayRecWin( 'Records Available for Ressurection:' ) ;
+    Rec:=0 ;
+    Repeat
+      repeat
+        repeat
+          seek( figfile, rec ) ;
+          Read( figfile, fig ) ;
+          If Fig.Active = false then
+            displayrecdim( Rec, False )
+          else Inc( Rec ) ;
+        Until ( Fig.Active = False ) or ( Rec >= Max ) ;
+        GotoXY( 1, 1 ) ;
+        Choice:=Readkey ;
+        If Choice=#0 then choice:=readkey ;
+        Case Choice of
+          Uparrow:MoveRec( -1, 1, False ) ;
+          DownArrow:MoveRec( 1, 1, False ) ;
+          PgUp:MoveRec( -1, 10, False ) ;
+          PgDn:MoveRec( 1, 10, False ) ;
+        end ; {Case}
+      Until ( Choice=#27 ) or ( Upcase( Choice ) = 'R' ) ;
+      If Upcase( Choice ) = 'R' then
+        begin
+          SureWin ;
+          If Sure=TRUE Then
+            begin
+              Fig.Active:=TRUE ;
+              Reset( Figfile ) ;
+              Seek( Figfile, rec ) ;
+              Write( Figfile, fig ) ;
+            end
+          else
+            Rec:=max+1 ;
+        end ; {IF}
+    Until ( Choice = #27 ) ;
+  end ; {Ressurection Proc}
 
 Procedure Edit ;
 
@@ -625,6 +689,12 @@ begin
 			'2': ;
 			'3': KillRec ;
 			'4': ViewRecs ;
+      'p': Purge ;
+      's': begin
+             Sort( 2, 0, 0 ) ;
+             ErrorWin( 'The record sort was successful.', '' ) ;
+           end ; {Sort MiniRoutine}
+      'r': Ressurect ;
 		end ; {case}
 	Until ( Choice = '5' ) or ( UPCASE( Choice ) = 'Q' ) ;
 
