@@ -18,10 +18,18 @@ Type FigRecType = Record
 			Active:Boolean ;
 		end ;
 
+     PrefType = Record
+      Config:array[ 1..3 ] of byte ;
+      p:byte ;
+    end ;
+
 Var	FigSize, Max, TotalInt, Rec, I, ProcINT, Howdy, Hi:integer;
 		Fig, temp:FigRecType ;
+    Pref:Array[ 1..3 ] of byte ;
 		TotalChar, tempchar:string[200] ;
 		FigFile, tempfile:File of FigRecType ;
+    Preffile:file of Preftype ;
+    Preferences:PrefType ;
 		cursor, sure:boolean ;
 		Choice, ProcChar:char ;
 
@@ -66,13 +74,14 @@ Procedure MoveRec( Funct, HowManyTimes:integer; Con:Boolean) ;
 				Reset( FigFile ) ;
 				Seek( FigFile, Rec ) ;
 				Read( FigFile, Fig ) ;
-			until( Fig.Active=con ) or ( Rec >= max ) ;
+			until( Fig.Active=con ) or ( Rec >= max ) or ( Rec <= 0 ) ;
     If Rec>Max then Rec:=max ;
     Seek( Figfile, rec ) ;
     Read( Figfile, fig ) ;
     If Fig.active <> Con then
       repeat
-        Dec( Rec ) ;
+        If Funct<0 then Inc( Rec )
+        else Dec( Rec ) ;
         Seek( Figfile, rec ) ;
         Read( Figfile, fig ) ;
     Until( Fig.Active=con ) or ( Rec<=0 ) or ( Rec>=max ) ;
@@ -121,7 +130,7 @@ Procedure Readint( x, linenum, lenstr, Prev:integer ) ;
                         else if prev<100000 then howdy:=5
                              else if prev<1000000 then howdy:=6 ;
     GotoXY( x, linenum ) ;
-    Write( Totalint ) ;
+    If Totalint <> 0 then Write( Totalint ) ;
 		Repeat
 			procchar:=readkey ;
 			If ORD( ProcChar ) = 8 then
@@ -133,7 +142,7 @@ Procedure Readint( x, linenum, lenstr, Prev:integer ) ;
 					For I:=1 to lenstr do
 						Write( ' ' ) ;
 					GotoXY( x, linenum ) ;
-					Write( totalint ) ;
+					If Totalint <> 0 then Write( totalint ) ;
 					If Totalint<0 then Totalint:=0 ;
 				end
 			else
@@ -152,7 +161,7 @@ Procedure Readint( x, linenum, lenstr, Prev:integer ) ;
 									Write( ' ' ) ;
 								totalint:=10*totalint + procint ;
 								GotoXY( x, linenum ) ;
-								Write( totalint ) ;
+								If Totalint <> 0 then Write( totalint ) ;
 							end ;
 				end ;
 		Until ord(procchar)=13  ;
@@ -183,6 +192,7 @@ Procedure Readchar( x, linenum, lenstr:integer; entry:string ) ;
 			else
 			If ( (ord(procchar)>96) and (ord(procchar)<123) ) or
 				 ( (ord(procchar)>64) and (ord(procchar)<91 ) ) or
+			   ( (ord(procchar)>47) and (ord(procchar)<58 ) ) or
 				 ( ord( procchar ) = 32 ) then
 				begin
 					If howdy < lenstr then
@@ -509,28 +519,22 @@ Procedure Add ;
 				Readchar( 32, 12, 40, '' ) ;
 				Name:=totalchar ;
 				Hilite( 32, 12, 2, 40 ) ;
-        GotoXY( 32, 12 ) ;
-				Write( name ) ;
 				Hilite( 32, 13, 1, 3 ) ;
 				Readint( 32, 13, 3, 0 ) ;
 				Num:=totalint ;
 				Hilite( 32, 13, 2, 3 ) ;
-				Write( num ) ;
 				Hilite( 32, 14, 1, 40 ) ;
 				Readchar( 32, 14, 40, '' ) ;
 				appearance:=totalchar ;
 				Hilite( 32, 14, 2, 40 ) ;
-				Write( appearance ) ;
 				Hilite( 32, 15, 1, 2 ) ;
 				Readint( 32, 15, 2, 0 ) ;
 				Condition:=totalint ;
 				Hilite( 32, 15, 2, 2 ) ;
-				Write( condition ) ;
 				Hilite( 32, 16, 1, 5 ) ;
 				Readchar( 32, 16, 5, '' ) ;
 				sideofforce:=totalchar ;
 				Hilite( 32, 16, 2, 5 ) ;
-				Write( SideOfForce ) ;
 				Active:=TRUE ;
 			end ; {End The Fig Do}
 			Write( FigFile, Fig ) ;
@@ -539,9 +543,21 @@ Procedure Add ;
 Procedure KillRec ;
 	Begin
 		Max:=Filesize( figfile ) -1 ;
+    Sure:=FALSE ;
+    For Hi:=0 to max do
+      begin
+        Seek( Figfile, hi ) ;
+        Read( Figfile, fig ) ;
+        If Fig.active=true then Sure:=true ;
+      end ;
+    If Sure=false then
+      begin
+        ErrorWin( 'There are no records to delete.', '' ) ;
+        Exit ;
+      end ;
 		Repeat
-			Menu ;
-			DisplayRecWin( 'Delete Records' ) ;
+      Menu ;
+		  DisplayRecWin( 'Delete Records' ) ;
 			Rec := 0 ;
 			Repeat
 				DisplayRecDim( Rec, True ) ;
@@ -568,6 +584,7 @@ Procedure KillRec ;
 							Reset( Figfile ) ;
 							Seek( Figfile, rec ) ;
 							Write( Figfile, fig ) ;
+              ErrorWin( 'The record was deleted.', 'Delete Records' ) ;
 						end
 					else
 						Rec:=max+1 ;
@@ -577,6 +594,19 @@ Procedure KillRec ;
 
 Procedure Ressurect ;
   begin
+    Sure:=FALSE ;
+    For Hi:=0 to ( Filesize( Figfile ) - 1 ) do
+      begin
+        Seek( Figfile, hi ) ;
+        Read( Figfile, fig ) ;
+        If Fig.active=false then Sure:=true ;
+      end ;
+    If Sure=false then
+      begin
+        ErrorWin( 'There are no records to ressurect.', '' ) ;
+        Exit ;
+      end ;
+    Menu ;
     DisplayRecWin( 'Records Available for Ressurection:' ) ;
     Rec:=0 ;
     Repeat
@@ -607,9 +637,11 @@ Procedure Ressurect ;
               Reset( Figfile ) ;
               Seek( Figfile, rec ) ;
               Write( Figfile, fig ) ;
+              ErrorWin( 'The record was ressurected.', '' ) ;
+              Choice:=#27 ;
             end
           else
-            Rec:=max+1 ;
+            rec:=0 ;
         end ; {IF}
     Until ( Choice = #27 ) ;
   end ; {Ressurection Proc}
@@ -670,15 +702,100 @@ begin
 	Until( Upcase(pick)='N' ) or ( N<>-1 ) ;
 end ; {Edit Proc}
 
+Procedure Prefs ;
+
+  Var x:Byte ;
+      key:char ;
+
+  Begin
+    ClrScr ;
+    If Filesize( Preffile ) = 0 then
+      begin
+        With Preferences do
+          begin
+            p:=1 ;
+            Config[1]:=2 ;
+            Config[2]:=0 ;
+            Config[3]:=0 ;
+          end ;
+        Write( Preffile, Preferences ) ;
+      end ; {If}
+    Reset( PrefFile ) ;
+    Read( PrefFile, Preferences ) ;
+    x:=preferences.p ;
+
+    For Hi:=1 to 3 do
+      begin
+        Pref[Hi]:=Preferences.Config[Hi] ;
+        If Pref[hi]>4 then Pref[Hi]:=4 ;
+        GotoXY( 30, 5+hi-1 ) ;
+        Case Pref[hi] of
+          0:Write( 'None          ' ) ;
+          1:Write( 'Name          ' ) ;
+          2:Write( 'Number        ' ) ;
+          3:Write( 'Side of Force ' ) ;
+          4:Write( 'Condition     ' ) ;
+        end ; {Writing Case}
+      end ; {For}
+
+    While Key<>#27 do
+      begin
+        Hilite( 30, 5+x-1, 1, 14 ) ;
+        Key:=Readkey ;
+        if key=#0 then
+          begin
+            Key:=readkey ;
+            Hilite( 30, 5+x-1, 2, 14 ) ;
+            {GotoXY( 5, 20 ) ; Write( 'x:',x,' Pref[1]:',pref[1],' Pref[2]:',pref[2],' Pref[3]:',pref[3],'.' ) ; }
+            Case key of
+              #72:If x>1 then dec( x ) ;
+              #80:If x<3 then inc( x ) ;
+            end ; {CASE}
+            If key = #75 then
+              begin
+                If Pref[x] >0 then dec( Pref[x] ) ;
+                GotoXY( 30, 5+x-1 ) ;
+                Case Pref[x] of
+                  0:Write( 'None          ' ) ;
+                  1:Write( 'Name          ' ) ;
+                  2:Write( 'Number        ' ) ;
+                  3:Write( 'Side of Force ' ) ;
+                  4:Write( 'Condition     ' ) ;
+                end ; {Writing Case}
+              end ;{IF}
+            If key = #77 then
+              begin
+                If Pref[x] <4 then inc( Pref[x] ) ;
+                GotoXY( 30, 5+x-1 ) ;
+                Case Pref[x] of
+                  0:Write( 'None          ' ) ;
+                  1:Write( 'Name          ' ) ;
+                  2:Write( 'Number        ' ) ;
+                  3:Write( 'Side of Force ' ) ;
+                  4:Write( 'Condition     ' ) ;
+                end ; {Writing Case}
+              end ;{IF}
+            Hilite( 30, 5+x-1, 1, 14 )
+          end ; {IF #0}
+      end ; {While}
+    Reset( PrefFile ) ;
+    Write( Preffile, Preferences ) ;
+    TextBackground( Black ) ;
+  end ; {Proc}
+
 begin
 	{Cursor:= _displaycursor( false ) ;}
 	textbackground( black ) ;
 	TextColor( white ) ;
+  Assign( PrefFile, 'c:\Solar.PRF' ) ;
 	Assign( FigFile, 'c:\JCFigs.rec' ) ;
 	{$I-}
 	Reset( FigFile ) ;
 	If IOResult <> 0 then
 		Rewrite( FigFile ) ;
+  Reset( PrefFile ) ;
+  If IOResult <> 0 then
+    Rewrite( PrefFile ) ;
 	{$I+}
 	repeat ;
 		Menu ;
@@ -695,6 +812,7 @@ begin
              ErrorWin( 'The record sort was successful.', '' ) ;
            end ; {Sort MiniRoutine}
       'r': Ressurect ;
+      'c': Prefs ;
 		end ; {case}
 	Until ( Choice = '5' ) or ( UPCASE( Choice ) = 'Q' ) ;
 
