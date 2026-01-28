@@ -1,6 +1,6 @@
 Program RunnerWithFeaturesUpDaButt ; {With Password and Password Encryption}
 
-Uses crt, dos, Zakmohn, MenuTool, ScrnSave ;
+Uses crt, dos, Zakmohn, MenuTool, ScrSave2 ;
 
 Type
 	ShortCut = Record
@@ -708,6 +708,7 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
   Assign( Logfile, 'C:\Batches\MenuActs.LOG' ) ;
   GetDir( 0 {Current Drive}, WhereDaUserBe ) ;
 	Initwins ; {Necessary}
+  SetScreenSaverTime( 1 {Minute} ) ;
 	GetStuffs ;{Get Prefs}
   Log( 'Startup Runner.' ) ;
 	If KeyPressed then
@@ -860,26 +861,15 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
 			        i := Random( 250 ) + 1 ;
               Log( 'Manually Activate ScreenSaver.' ) ;
 			        Case i of
-			        	1..75:
+			        	1..85:
 									Key:=Pieces ;
 
-			          76..110:
+			          86..170:
 									Key:=ScreenShift( 1 {Long Slides} ) ;
 
-       			   111..180:
+       			   171..255:
 									Key:=ScreenShift( 2 {Earthquake} ) ;
 
-			          181..210:
-			          	Key:=OpenAndClose ; {Shutters}
-
-			          211..225:
-			          	Key:=Boxes ;
-
-			          226..240:
-      			    	Key:=PhaseOut ;
-
-			          241..255:
-			          	Key:=Fade ; {Fade}
 							end ; {Case}
               If Key = #0 then Key := Readkey ;
               Log( 'Manual ScreenSaver Deactivated.' ) ;
