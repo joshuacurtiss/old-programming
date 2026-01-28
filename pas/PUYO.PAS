@@ -2,12 +2,13 @@ Program Puyo ;
 
 Uses CRT, DOS, Joshmohn ;
 
-Const Horiz = True ;        LeftKey   = 1 ;       	NoAction 				= 0 ;
-			Vert = False ;        RightKey  = 2 ;         DroppingBlob  	= 1 ;
-      Space = 0 ;           RotateKey = 3 ;         CheckingForPuyo = 2 ;
-      Rock = 5 ;            DropKey   = 4 ;         KillingPuyo			= 3 ;
-      MaxColumns = 20 ;															DroppingColumn  = 4 ;
-      TickTime = 1 ;																Quit						= 9 ;
+Const Horiz = True ;        LeftKey   = 1 ;       	NoAction 					= 0 ;
+			Vert = False ;        RightKey  = 2 ;         DroppingBlob  		= 1 ;
+      Space = 0 ;           RotateKey = 3 ;         CheckingForPuyo 	= 2 ;
+      Rock = 5 ;            DropKey   = 4 ;         KillingPuyo				= 3 ;
+      MaxColumns = 13 ;															DroppingColumns 	= 4 ;
+      TickTime = 1 ;                                CheckingPuyoAgain = 5 ;
+																										Quit							= 9 ;
 
 			KeyDefaults:Array[ 1..4 ] of Char = ( '4', '6', '5', '0' ) ;
 
@@ -26,10 +27,14 @@ Type 	Color = Byte ;
         Next:Blob ;
       	Keys:Array[ 1..4 ] of Char ;
         Event:Byte ;
+        EventStep:Byte ;
       end ;
 
 Var Player:Array[ 1..2 ] of Game ;
 		CurrentTick, CurrentTime:Word ;
+    PuyoCheck:Array[ 1..2 ] of Array[ 1..6, 1..MaxColumns ] of Boolean ;
+    KillCheckList:Array[ 1..6, 1..MaxColumns ] of Boolean ;
+    ColumnCheck:Array[ 1..6 ] of Boolean ;
     LastRandom, CurrentPlayer, NumOfPlayers:Byte ;
 
 
@@ -51,7 +56,6 @@ Begin
 end ;
 
 Procedure NewBlob( var Who:Game ) ;
-Var Amanda, Spam:Byte ;
 Begin
   With Who do
   	Begin
@@ -63,8 +67,8 @@ Begin
       Status := False ;
       Col[ 1 ] := RandomQuad ;
       Orientation := Horiz ;
-      y[ 1 ] := MaxColumns ;
-      y[ 2 ] := MaxColumns ;
+      y[ 1 ] := MaxColumns+1 ;
+      y[ 2 ] := MaxColumns+1 ;
       x[ 1 ] := 3 ;
       x[ 2 ] := 4 ;
       Col[ 2 ] := RandomQuad ;
@@ -115,10 +119,49 @@ Function ColumnHeight( Which:Game ; c:Byte ):Byte ;
 Var h:Byte ;
 Begin
 	h:=1 ;
- 	While ( h<=20 ) and ( Which.Board[ c, h ] <> Space ) do Inc( h ) ;
+ 	While ( h<=MaxColumns ) and ( Which.Board[ c, h ] <> Space ) do Inc( h ) ;
   Dec( h ) ;
   ColumnHeight := h ;
-end ;
+end ; {ColumnHeight}
+
+Procedure InitCheck( Which:Byte ) ;
+Var i,j:Byte ;
+Begin
+	For i:=1 to 6 do
+  	For j:=1 to MaxColumns do
+      If Which <= 2 then
+    		PuyoCheck[ Which ][ i, j ] := False
+      else
+      	KillCheckList[ i, j ] := False ;
+end ; {InitCheck}
+
+Function CheckForPuyo( PuyoNum, x, y, PuyoColor:Byte ):Byte ;
+Var Count, i, nx, ny:Byte ;
+Begin
+	PuyoCheck[ PuyoNum ][ x, y ] := True ;
+  Count := 1 ;
+  nx := x ; ny := y ;
+  For i := 1 to 2 do
+  	Begin
+    	If i = 1 then Inc( nx )
+      else Dec( nx, i ) ;
+		  If ( nx <= 6 ) and ( nx >= 1 ) and
+				( Player[ CurrentPlayer ].Board[nx,y] = PuyoColor ) and
+				( PuyoCheck[ PuyoNum ][ nx, y ]=False ) then
+					Inc( Count, CheckForPuyo( PuyoNum, nx, y, PuyoColor ) ) ;
+    end ;
+  For i := 1 to 2 do
+  	Begin
+    	If i = 1 then Inc( ny )
+      else Dec( ny, i ) ;
+      If ( ny >= 1 ) and ( ny <= MaxColumns ) and
+      	( Player[ CurrentPlayer ].Board[x,ny] = PuyoColor ) and
+        ( PuyoCheck[ PuyoNum ][ x, ny ] = False ) then
+					Inc( Count, CheckForPuyo( PuyoNum, x, ny, PuyoColor ) ) ;
+    end ;
+  CheckForPuyo := Count ;
+end ; {CheckForPuyo}
+
 
 
 Function TouchDown:Boolean ;
@@ -177,10 +220,17 @@ Begin
     With Player[ CurrentPlayer ] do
     	Begin
 				Case q of
-  	  		LeftKey:   For i:=1 to 2 do Dec( Current.x[ i ] ) ;
-    	   	RightKey:  For i:=1 to 2 do Inc( Current.x[ i ] ) ;
+  	  		LeftKey:   If ( Current.x[1]>1 ) and ( Current.y[1]>
+          						ColumnHeight( Player[CurrentPlayer],Current.x[1]-1))then
+												For i:=1 to 2 do Dec( Current.x[ i ] ) ;
+    	   	RightKey:  If ( Current.x[2]<6 ) and ( Current.y[1]>
+											ColumnHeight( Player[CurrentPlayer],Current.x[2]+1))then
+												For i:=1 to 2 do Inc( Current.x[ i ] ) ;
       		DropKey:   Event := DroppingBlob ;
-	      	RotateKey: Rotate( Current ) ;
+	      	RotateKey: If NOT ( Current.y[1]>MaxColumns-1 ) and
+          						NOT ( ( Current.Orientation=Vert ) and ( ColumnHeight(
+											Player[CurrentPlayer],Current.x[1]+1 ) >= Current.y[1] ) ) then
+												Rotate( Current ) ;
   	  	end ;
   		end
   else
@@ -206,8 +256,14 @@ end ;
 
 Procedure Engine ; {Does One Cycle}
 
+Const FlashTime = 8 ;
+
 Var Time, Tick, Blah:Word ;
-    i:Byte ;
+    i, j, a, b:Byte ;
+    Done:Boolean ;
+    PuyoSize:Array[ 1..2 ] of Byte ;
+    WW:Char ;
+    ta:Array[ 1..6 ] of Boolean ;
 
 Begin
 	GetTime( Blah, Blah, Time, Tick ) ;
@@ -217,21 +273,129 @@ Begin
       If Tick > 99 then Dec( Tick, 100 ) ;
     	CurrentTick := Tick ;
 			Case Player[ CurrentPlayer ].Event of
+        CheckingPuyoAgain:
+        	Begin
+            InitCheck( 3 ) ;
+            For i := 1 to 6 do
+            	ta[ i ] := False ;
+          	For i := 1 to 6 do
+            	With Player[ CurrentPlayer ] do
+            		Begin
+									If ColumnCheck[ i ] then
+                  	For j := 1 to ColumnHeight( Player[ CurrentPlayer ],i ) do
+                    	If Not KillCheckList[ i, j ] then
+                        Begin
+                      		InitCheck( 1 ) ;
+                          PuyoSize[ 1 ]:=CheckForPuyo( 1, i, j, Board[i,j] ) ;
+                          If PuyoSize[ 1 ] > 3 then
+                        		For a := 1 to 6 do
+                            	For b := 1 to MaxColumns do
+                              	If PuyoCheck[ 1 ][ a, b ] then
+                                  Begin
+                                  	ta[ a ] := True ;
+																		KillCheckList[ a, b ] := True ;
+                                  end ;
+                        end ;
+              	end ;
+            For i := 1 to 6 do
+            	ColumnCheck[ i ] := ta[ i ] ;
+            Player[ CurrentPlayer ].Event := KillingPuyo ;
+          end ;
+
+        DroppingColumns:
+        	Begin
+          	Done := True ;
+          	For i := 1 to 6 do
+            	Begin
+              	Blah:=MaxColumns + 1 ;
+                Repeat
+                	Dec( Blah ) ;
+                Until (Blah<1) or ( Player[Currentplayer].Board[i,Blah]>Space);
+            		If (Blah>1) and (Blah>ColumnHeight(Player[CurrentPlayer],i) ) then
+                  Begin
+                  	Done := False ;
+                    For j:=ColumnHeight( Player[CurrentPlayer], i )+ 1 to Blah-1 do
+                      With Player[ CurrentPlayer ] do
+                    		Begin
+                      		Board[i,j] := Board[ i, j+1 ] ;
+                          Case Board[ i, j ] of
+                          	0:WW:=' ' ;
+                            1..4:WW:='*' ;
+                            5:WW:='@';
+                          end ;
+                          WriteChar_A(19+i,23-j, WW, Board[i,j] ) ;
+                      	end ;
+                    Player[ CurrentPlayer ].Board[ i, Blah ] := Space ;
+                    WriteChar_A( 19+i, 23-Blah, ' ', Black ) ;
+                  end ;
+						  end ;
+            If Done then
+            	Begin
+              	Player[ CurrentPlayer ].Event := CheckingPuyoAgain ;
+                Player[ CurrentPlayer ].EventStep := NoAction ;
+              end ;
+          end ;
+
 		    KillingPuyo:
 		    	Begin
-		      	Player[ CurrentPlayer ].Event := NoAction ;
-		        NewBlob( Player[ CurrentPlayer ] ) ;
+          	Done := True ;
+            With Player[ CurrentPlayer ] do
+            	Begin
+                Inc( EventStep ) ;
+                If EventStep mod 2 = 0 then
+                	Blah := White
+                else
+                	Blah := Black ;
+                For i := 1 to 6 do
+                	For j := 1 to MaxColumns do
+                  	If KillCheckList[ i, j ] then
+                      Begin
+												Hilite( 19+i,23-j, Blah, 1 ) ;
+                        If EventStep > FlashTime then
+                        	Begin
+                          	Done := False ;
+                      			Board[ i, j ] := Space ;
+                          	WriteChar_A(19+i,23-j, ' ', Black ) ;
+                          end ;
+                      end ;
+              end ;
+            If Player[ CurrentPlayer ].EventStep > FlashTime then
+            	Begin
+              	NewBlob( Player[ CurrentPlayer ] ) ;
+              	If Not Done then
+									Player[ CurrentPlayer ].Event := DroppingColumns
+                else
+                	Player[ CurrentPlayer ].Event := NoAction ;
+              end ;
 		      end ;
+
 		    CheckingForPuyo:
 		    	Begin
-		      	Player[ CurrentPlayer ].Event := KillingPuyo ;
+            With Player[ CurrentPlayer ].Current do
+	            For I:=1 to 2 do
+		          	Begin
+                  InitCheck( i ) ;
+									PuyoSize[i] := CheckForPuyo( i, x[ i ], y[ i ], Col[ i ] );
+                	If PuyoSize[ i ] < 4 then InitCheck( i ) ;
+                end ;
+            For i := 1 to 6 do ColumnCheck[ i ] := False ;
+            For i := 1 to 6 do
+            	For j := 1 to MaxColumns do
+              	Begin
+             			KillCheckList[i,j]:=PuyoCheck[1][i,j] or PuyoCheck[2][i,j] ;
+                	If KillCheckList[i,j] then ColumnCheck[ i ] := True ;
+            		end ;
+            Player[ CurrentPlayer ].EventStep := NoAction ;
+         		Player[ CurrentPlayer ].Event := KillingPuyo
 		      end ; {End CheckingForPuyo Event}
+
 		  	DroppingBlob:
 		    	Begin
 		      	ErasePuyo ;
 		        HandleTouchDown ;
 		        WritePuyo ;
 		      end ; {End DroppingBlob Event}
+
 		    NoAction:
 		    	Begin
 					  If Time <> CurrentTime then
@@ -259,7 +423,7 @@ end ; {Engine PROC}
 Begin
 	ClrScr ;
 	InitWins ; {Text}
-  WinUp( 19, 2, 26, 23 ) ;
+  WinUp( 19, 9, 26, 23 ) ;
   CurrentTick := 1 ;
 	NumOfPlayers := 1 ;
   CurrentPlayer := 1 ;
