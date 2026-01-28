@@ -16,20 +16,50 @@ Const NumOfWins = 6   ;		OptMax				= 15  ;
       					(	'Life is juicy.',
                 	'"Tastes like chicken."',
                		'On the Waterfront: "It''s this big festival." -Ibe Merchant',
-                	'Thanks to Kostmohn for input procedure.',
-                	'Markus Bookland: Colored boxes screensaver concept.',
+                	'Pedro Diaz: "Abdul-Rauf is bunk."',
+                	'Do not forget: Germs are bad for you.',
                 	'Always remember: Three rights make a left.',
                 	'Bill Gates Quote: "640k is enough for anyone."',
                 	'Mr. Pozzi: The Man, the Myth, the Legend.'	) ;
 
 Var Key																						:Char ;
 		UserType, PassWord, Command, WhereDaUserBe		:String ;
-		f																							:File of String ;
+		f, Logfile																		:File of String ;
     DoCommand																			:Boolean ;
     Delta, LenOfType, y, i, opt										:Byte ;
     MenuOpt													:Array[ 1..OptMax ] of String ;
     WhatToDo												:Array[ OptMax+1 .. OptMax*2 ] of String;
     KeyShort												:Array[ 1..CutMax ] of ShortCut ;
+
+Function NumSwitch( N:Word ) : String ;
+Var s:String ;
+Begin
+	Str( n, s ) ;
+  If N < 10 then Insert( '0', s, 1 ) ;
+  NumSwitch:=s ;
+end ;
+
+Procedure Log( Message:String ) ;
+
+Var h, m, s, hun, Year, Month, Day, OfWeek:Word ;
+		Total:String ;
+
+Begin
+	{$I-}
+  	Reset( Logfile ) ;
+  {$I+}
+  If IOResult <> 0 then ReWrite( Logfile ) ;
+  GetTime( h, m, s, hun ) ;
+  GetDate( Year, Month, Day, OfWeek ) ;
+  If h > 12 then Dec( h, 12 ) ;
+  Total := NumSwitch( Month ) + '/' + NumSwitch( Day ) + '  ' +
+						NumSwitch( H ) + ':' + NumSwitch( m ) + ':' + NumSwitch( s ) +
+						' ' + Message ;
+  Reset( Logfile ) ;
+  Seek( Logfile, FileSize( Logfile ) ) ;
+  Write( Logfile, Total ) ;
+  Close( Logfile ) ;
+end ; {Log Proc}
 
 
 Procedure FYI( Warning:String ) ;{For Your Info window with only Okay button}
@@ -358,6 +388,7 @@ Begin
 		end ;
 	Close( f ) ;
   {$I+}
+  Log( 'Altered Shortcuts' ) ;
 end ;
 
 Procedure EditMenu ;    {Edits menu settings}
@@ -428,6 +459,7 @@ Begin
 			end ;
 		Close( f ) ;
 	{$I+}
+  Log( 'Altered Menu' ) ;
 end ;
 
 Procedure GetStuffs ;             {Load all prefs from Datafile}
@@ -550,10 +582,11 @@ Procedure Execute ;
 
 Var D:Integer ;
 		S:PathStr ;
-		Batman, Robin:String ;
+		Batman, Robin, LogVar:String ;
 
 Begin
 	CloseAllWins ;
+  LogVar := Command ;
 	If DoCommand then
 		Begin
 			I:=Length( Command ) + 1 ;
@@ -603,9 +636,11 @@ Begin
 					If S = '' then FYI( Batman+' Can''t be Found at '+Robin+'.' )
 					else
 						Begin
+            	Log( 'Run ' + LogVar ) ;
 							SwapVectors;
 							Exec(GetEnv('COMSPEC'), Command); {Temporarily exit and go to}
 							SwapVectors;                      {the other program}
+              Log( 'Return from ' + LogVar ) ;
               If Keypressed then
 								Begin
 									Key := Readkey ;
@@ -668,10 +703,13 @@ end ;
 
 
 Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
+	Opt := 1 ;
   DoCommand := False ;
+  Assign( Logfile, 'C:\Batches\MenuActs.LOG' ) ;
   GetDir( 0 {Current Drive}, WhereDaUserBe ) ;
 	Initwins ; {Necessary}
 	GetStuffs ;{Get Prefs}
+  Log( 'Startup Runner.' ) ;
 	If KeyPressed then
     begin                {If a key was pressed while Runner was starting up,}
       Key:=Readkey ;		 {will check to see if its a Key ShortCut.}
@@ -694,10 +732,12 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
 			If Y=0 then
 				Begin
       		MenuOpt[ 1 ]:='Edit Menu Settings'  ;
-          MenuOpt[ 2 ]:='Press ESC to EXIT'  ;   {Default settings}
+          MenuOpt[ 2 ]:='Start ScreenSaver' ;
+          MenuOpt[ OptMax ]:='Press ESC to EXIT'  ;   		{Default settings}
           WhatToDo[ 1+OptMax ]:='!EDITSETTINGS' ;
-          WhatToDo[ 2+OptMax ]:='!EXIT' ;
-          Inc( y, 2 ) ;
+          WhatToDo[ 2+OptMax ]:='!SCREENSAVER' ;
+          WhatToDo[ OptMax+OptMax ]:='!EXIT' ;
+          Inc( y, 3 ) ;
         end ;
 			WinUp( 20, 2, 54, y+5 ) ;
       WriteStr( 29, 3, 'Startup Options:' ) ;  {Display it}
@@ -705,8 +745,9 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
       For I:=1 to Y do
 				If MenuOpt[ Cooh(i)-OptMax ] <> Nothing then
 					WriteStr( 22, I+Delta, MenuOpt[ Cooh(i)-OptMax ] ) ;
-			Opt := 1 ;
       Repeat
+        If Opt > Y then Opt:=1
+        else If Opt<1 then Opt:=y ;
 				HiLite( 22, Opt+4, Blue, 32 ) ;
 				Key := WaitForKeypress ;         {Sit and wait for user.}
 				If Key=#0 then Key:=Readkey ;
@@ -769,6 +810,7 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
                   Seek( f, Optmax+Optmax ) ;{Save password}
                   Write( f, UserType ) ;
                 	Close( f ) ;
+                  Log( 'Alter Password to '+UserType+'.' ) ;
                 end
               else
               	Begin
@@ -776,7 +818,8 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
                   WinDown ;
                 end ;
             end ; {IF Alt-P}
-          #67 {F9}:RequirePass ; {Edit Menu Key}
+          #67 {F9}:RequirePass ; 	{Edit Menu Key}
+          #66 {F8}:Command := '!SCREENSAVER' ; 	  {ScreenSaver Activate}
           #60, #62, #64 {F2, F4, F6}:
           	Begin
             	Randomize ;
@@ -791,12 +834,11 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
               Command:='' ;
             end ;
         end ;
-        If Opt > Y then Opt:=1
-        else If Opt<1 then Opt:=y ;
-      Until ( Key = #13 ) or ( Key = #67 {F9} ) or ( Key = #27 ) ;
+      Until ( Key = #13 ) or ( Key=#67 ) or ( Key=#66 ) or ( Key = #27 ) ;
       If Key <> #27 then
       	Begin
-		      If Command <> '!EDITSETTINGS' then
+		      If (Command<>'!EDITSETTINGS') and (Command<>'!SCREENSAVER')
+							and (Command<>'!REBOOT') then
 						Begin
 							Command := '' ;
 							For I:=1 to Length(WhatToDo[ Cooh(Opt) ]) do
@@ -806,6 +848,42 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
 						Case Menu( 3, 4, 23, 10, 'Edit Menu:', 'Alter Menu\Alter Shortcuts\Exit' ) of
 							1:EditMenu ;
               2:EditShorts ;
+            end ;
+          If Copy( Command, 1, 7 ) = '!REBOOT' then
+          	If Menu( 30, 8, 50, 13, 'Are You Sure?', '     Reboot       \    No!! No!!     ' ) = 1 then
+            	Begin
+              	Log( 'Reboot System.' ) ;
+								FYI( 'This feature has not yet been implemented.' ) ;
+              end ;
+          If Copy( Command, 1, 12 ) = '!SCREENSAVER' then
+          	Begin
+			        i := Random( 250 ) + 1 ;
+              Log( 'Manually Activate ScreenSaver.' ) ;
+			        Case i of
+			        	1..75:
+									Key:=Pieces ;
+
+			          76..110:
+									Key:=ScreenShift( 1 {Long Slides} ) ;
+
+       			   111..180:
+									Key:=ScreenShift( 2 {Earthquake} ) ;
+
+			          181..210:
+			          	Key:=OpenAndClose ; {Shutters}
+
+			          211..225:
+			          	Key:=Boxes ;
+
+			          226..240:
+      			    	Key:=PhaseOut ;
+
+			          241..255:
+			          	Key:=Fade ; {Fade}
+							end ; {Case}
+              If Key = #0 then Key := Readkey ;
+              Log( 'Manual ScreenSaver Deactivated.' ) ;
+              Key := ' ' ;
             end ;
 					If Copy( Command, 1, 4 ) = 'RUN ' then
 		      	Begin
@@ -826,12 +904,16 @@ Begin {$M 8192, 0, 0}  {Not a typical main section. A little large}
   {$I-}
   	ChDir( WhereDaUserBe ) ;
   {$I+}
-	WinUp( 10, 8, 38, 12 ) ;
-  WriteStr( 12, 10, 'Thanks for using Runner!' ) ;
-	Command := WaitForKeypress ; {Press a key to finally leave. If they don't,}
- 	CloseAllWins ;							 {screen saver will come up in so many minutes!}
-  For I:=1 to 80 do WriteChar_A( i, 25, ' ', Att( Black, White ) ) ;
- 	GotoXY( 1, 24 ) ;
+  Log( 'Exit Runner.' ) ;
+ 	CloseAllWins ;
+  For I:=1 to 80 do
+		Begin
+			WriteChar_A( i, 25, ' ', Att( Black, White ) ) ;
+      WriteChar_A( i, 24, ' ', Att( Black, White ) ) ;
+    end ;
+  Randomize ;
+  WriteStr( 1, 24, Message[ Random( 8 ) + 1 ] ) ;
+ 	GotoXY( 1, 25 ) ;
   If IOResult <> 0 then
     Writeln( 'Crap, where were we anyway???' ) ;
 end.
