@@ -4,6 +4,11 @@ Program MyDataBase ;
 
 Uses CRT, Graph, DOS ;
 
+CONST
+	UpArrow   = #72;  DownArrow  = #80;
+	LeftArrow = #75;  RightArrow = #77;
+	PgUp      = #73;  PgDn       = #81;
+
 Type FigRecType = Record
 			Name:String[ 40 ] ;
 			Num:Integer ;
@@ -19,6 +24,62 @@ Var	FigSize, Max, TotalInt, Rec, I, ProcINT, Howdy, Hi:integer;
 		FigFile:File of FigRecType ;
 		cursor, sure:boolean ;
 		Choice, ProcChar:char ;
+
+Procedure Switch( k, j:integer ; Cardk, cardj:Figrectype ) ;
+
+	Var Temp:figrectype ;
+
+	begin
+		Temp:=cardk ;
+		cardk:=cardj ;
+		cardj:=temp ;
+		seek( figfile, k ) ;
+		Write( figfile, cardk ) ;
+		Seek( figfile, j ) ;
+		Write( figfile, cardj ) ;
+	end ; {Switch Proc}
+
+Procedure Sort ;
+
+	Var FigK, figj:FigRecType ;
+			n,k,i,j:integer ;
+
+	Begin
+		N:=Filesize( Figfile ) - 1 ;
+		For I:= 0 to n-1 do
+			begin
+				J:=i+1 ;
+				Seek( Figfile, j ) ;
+				Read( Figfile, Figj ) ;
+				K:=j-1 ;
+				Seek( Figfile, k ) ;
+				Read( Figfile, Figk ) ;
+				While( figj.num<=figk.num ) and (K>0) do
+					begin
+						Switch( k, j, figk, figj ) ;
+						J:=j-1 ;
+						Seek( figfile, j ) ;
+						Read( Figfile, figj ) ;
+						K:=k- 1 ;
+						seek( figfile, k ) ;
+						Read( figfile, figk ) ;
+					end ; {While Do}
+			end ; {For To Do}
+	end ; {Sort Proc}
+
+Procedure MoveRec( Funct, HowManyTimes:integer ) ;
+	begin
+		For I := 1 to Howmanytimes do
+			repeat
+				If Funct>0 then Inc( Rec )
+					else Dec( Rec ) ;
+				If Rec>max then Rec:=Max ;
+				If Rec<0 then Rec:=0 ;
+				Reset( FigFile ) ;
+				Seek( FigFile, Rec ) ;
+				Read( FigFile, Fig ) ;
+			until( Fig.Active=TRUE ) ;
+	end ; {AdvanceRec Proc}
 
 Procedure Menu ;
 	begin
@@ -232,13 +293,23 @@ Procedure DisplayRecDim( pos:integer ) ;
 		With Fig do
 			begin
 				GotoXY( 32, 12 ) ;
+				Write( '                                        ' ) ;
+				GotoXY( 32, 12 ) ;
 				Write( name ) ;
+				GotoXY( 32, 13 ) ;
+				Write( '   ' ) ;
 				GotoXY( 32, 13 ) ;
 				Write( num ) ;
 				GotoXY( 32, 14 ) ;
+				Write( '                                        ' ) ;
+				GotoXY( 32, 14 ) ;
 				Write( Appearance ) ;
 				GotoXY( 32, 15 ) ;
+				Write( '      ' ) ;
+				GotoXY( 32, 15 ) ;
 				Write( Condition ) ;
+				GotoXY( 32, 16 ) ;
+				Write( '       ' ) ;
 				GotoXY( 32, 16 ) ;
 				Write( SideOfForce ) ;
 			end ; {With Fig}
@@ -265,6 +336,55 @@ Procedure DisplayRecWin( Title:String ) ;
 		GotoXY( 40 - ( length( Title ) div 2 ), 11 ) ;
 		Write( Title ) ;
 	end ;
+
+Procedure ErrorWin( Message, PrevWinTitle:STRING ) ;
+	begin
+		GotoXY( 11, 12 ) ;
+		Write( '旼컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴커' ) ;
+		For Howdy:=13 to 14 do
+			begin
+				GotoXY( 11, howdy ) ;
+				Write( '�                                                �' ) ;
+			end ;
+		GotoXY( 11, 15 ) ;
+		Write( '읕컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴켸' ) ;
+		GotoXY( 13, 13 ) ;
+		Write( Message ) ;
+		Hilite( 44, 14, 1, 6 ) ;
+		GotoXY( 45, 14 ) ;
+		Write( 'Okay' ) ;
+		Repeat
+			Choice:=Readkey ;
+		Until ( Ord( Choice ) = 13 ) ;
+		Hilite( 44, 14, 2, 6 ) ;
+		DisplayRecWin( PrevWinTitle ) ;
+	end ; {ErrorWinProc}
+
+Procedure ViewRecs ;
+	Begin
+		Max := Filesize( FigFile ) - 1 ;
+		Menu ;
+		DisplayRecWin( 'View Records' ) ;
+		Rec := 0 ;
+		Repeat
+			Repeat
+				Reset( figfile ) ;
+				Seek( Figfile, rec ) ;
+				Read( Figfile, fig ) ;
+				If Fig.Active = TRUE then DisplayRecDim( Rec )
+				else Inc( Rec ) ;
+			Until ( Fig.Active = TRUE ) or ( Rec = Max ) ;
+			GotoXY( 1, 1 ) ;
+			Choice:=Readkey ;
+			If Choice = #0 then Choice:=Readkey ;
+			Case Choice of
+				UpArrow:MoveRec( -1, 1 ) ;
+				DownArrow:MoveRec( 1, 1 ) ;
+				PgUp:MoveRec( -1, 10 ) ;
+				PgDn:MoveRec( 1, 10 ) ;
+			end ; {Case}
+		Until ( Ord(choice) = 13 ) or ( Choice = #27 ) ;
+	end ; {ViewRecs Proc}
 
 Procedure Add ;
 	Begin
@@ -296,23 +416,10 @@ Procedure Add ;
 				sideofforce:=totalchar ;
 				Hilite( 32, 16, 2, 5 ) ;
 				Write( SideOfForce ) ;
+				Active:=TRUE ;
 			end ; {End The Fig Do}
 			Write( FigFile, Fig ) ;
 	End ;
-
-Procedure MoveRec( Funct, HowManyTimes:integer ) ;
-	begin
-		For I := 1 to Howmanytimes do
-			repeat
-				If Funct>0 then Inc( Rec )
-					else Dec( Rec ) ;
-				If Rec>max then Rec:=Max ;
-				If Rec<0 then Rec:=0 ;
-				Reset( FigFile ) ;
-				Seek( FigFile, Rec ) ;
-				Read( FigFile, Fig ) ;
-			until( Fig.Active=TRUE ) ;
-	end ; {AdvanceRec Proc}
 
 Procedure KillRec ;
 	Begin
@@ -322,23 +429,33 @@ Procedure KillRec ;
 			RecWin ;
 			DisplayRecWin( 'Delete Records' ) ;
 			Rec := 0 ;
+			ErrorWin( 'This is JUST a test. Do not Worry!', 'Delete Records' );
 			Repeat
 				DisplayRecDim( Rec ) ;
 				GotoXY( 1, 1 ) ;
 				Choice := Readkey ;
-				Case Ord( Choice ) of
-					72: MoveRec( -1, 1 ) ;
-					80: MoveRec( 1, 1 ) ;
-					73: MoveRec( -1, 10 ) ;
-					81:	MoveRec( 1, 10 ) ;
-				end ; {CASE}
-			Until ( Upcase( Choice ) = 'D' ) or ( Ord( Choice ) = 27 );
+				if choice=#0 then
+					begin
+						Choice:=readkey ;
+						Case Choice of
+							UpArrow: MoveRec( -1, 1 ) ;
+							DownArrow: MoveRec( 1, 1 ) ;
+							PgUp: MoveRec( -1, 10 ) ;
+							PgDn:	MoveRec( 1, 10 ) ;
+						end ; {CASE}
+					end ;
+			Until ( Upcase( Choice ) = 'D' ) or ( Choice = #27 );
 
 			If Upcase( Choice ) = 'D' then
 				begin
 					SureWin ;
 					If Sure = TRUE then
-						Fig.Active := FALSE
+						begin
+							Fig.Active := FALSE ;
+							Reset( Figfile ) ;
+							Seek( Figfile, rec ) ;
+							Write( Figfile, fig ) ;
+						end
 					else
 						Rec:=max+1 ;
 				end ; {IF}
@@ -347,7 +464,8 @@ Procedure KillRec ;
 
 Procedure Edit ;
 
-var n:integer ;
+var pick:char ;
+		n:integer ;
 
 begin
 	reset( figfile ) ;
@@ -374,9 +492,9 @@ begin
 		{ETC...}
 
 		Writeln( 'Which item do you want to change? ' ) ;
-		Readln( choice ) ;
+		Readln( pick ) ;
 
-		Case choice of
+		Case pick of
 			'1': Readln( fig.name ) ;
 			'2': Readln( fig.num ) ;
 
@@ -391,16 +509,17 @@ begin
 			begin
 				Writeln( 'Would you like to edit another record? ' ) ;
 				Repeat
-					choice:=readkey ;
-					If ( upcase(choice) <> 'N' ) and ( upcase(choice) <> 'Y' ) then
+					pick:=readkey ;
+					If ( upcase(pick) <> 'N' ) and ( upcase(pick) <> 'Y' ) then
 						Write( CHR(7) ) ;
-				Until( Upcase(choice) = 'N' ) or ( Upcase(choice) = 'Y' ) ;
+				Until( Upcase(pick) = 'N' ) or ( Upcase(pick) = 'Y' ) ;
 			end ;
 
-	Until( Upcase(choice)='N' ) or ( N<>-1 ) ;
+	Until( Upcase(pick)='N' ) or ( N<>-1 ) ;
 end ; {Edit Proc}
 
 begin
+	{Cursor:=_displaycursor( false ) ;}
 	textbackground( black ) ;
 	TextColor( white ) ;
 	Assign( FigFile, 'c:\JCFigs.rec' ) ;
@@ -417,7 +536,8 @@ begin
 			'1': Add ;
 			'2': ;
 			'3': KillRec ;
-			'4': {ViewRecs} ;
+			'4': ViewRecs ;
+			'8': Sort ;
 		end ; {case}
 	Until ( Choice = '5' ) or ( UPCASE( Choice ) = 'Q' ) ;
 
@@ -429,5 +549,6 @@ begin
 	{			-------------									  	}
 	{		NumRecs := Filesize( Cardsfile ) ; 	}
 	{		Truncate( Cardsfile ) ; 				  	}
+
 
 end.
