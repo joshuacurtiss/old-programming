@@ -1,4 +1,4 @@
-Program Puyo ;
+Program Puyo ;   {Last worked on during May, at school.}
 
 Uses CRT, DOS, Joshmohn ;
 
@@ -8,8 +8,9 @@ Const Horiz = True ;        LeftKey   = 1 ;       	NoAction 					= 0 ;
       Rock = 5 ;            DropKey   = 4 ;         KillingPuyo				= 3 ;
       MaxColumns = 13 ;															DroppingColumns 	= 4 ;
       TickTime = 1 ;                                CheckingPuyoAgain = 5 ;
-                                                    Lost							= 8 ;
-																										Quit							= 9 ;
+      Increase = 23 ;                               LayingRocks			 	= 6 ;
+      Decrease = 33 ;                               Lost							= 8 ;
+			Alter		 = 91 ;																Quit							= 9 ;
 
 			KeyDefaults:Array[ 1..4 ] of Char = ( '4', '6', '5', '0' ) ;
       ExtraValidKeys:Set of Char = [ #27 ] ;
@@ -28,8 +29,9 @@ Type 	Color = Byte ;
 		    KillCheckList:Array[ 1..6, 1..MaxColumns ] of Boolean ;
         Current:Blob ;
         Next:Blob ;
+        Score:LongInt ;
       	Keys:Array[ 1..4 ] of Char ;
-        Event, EventStep:Byte ;
+        Event, EventStep, RockCount:Byte ;
         CurrentTick, CurrentTime:Word ;
       end ;
 
@@ -40,6 +42,24 @@ Var Player:Array[ 1..2 ] of Game ;
     LastRandom, CurrentPlayer, NumOfPlayers:Byte ;
     KeyBuffer:String ;
 
+
+Function OtherGuy:Byte ;
+Var g:Byte ;
+Begin
+	g := CurrentPlayer ;
+  Inc( g ) ;
+  If g > 2 then g := 1 ;
+  OtherGuy := g ;
+end ;
+
+Procedure ScoreManager( Action:Byte ; var His:Game ; ThisMuch:LongInt ) ;
+Begin
+	Case Action of
+  	Increase:Inc( His.Score, ThisMuch ) ;
+    Decrease:Dec( His.Score, ThisMuch ) ;
+    Alter:   His.Score := ThisMuch ;
+  end ;
+end ;
 
 Function RandomQuad:Byte ; {Spits out 1..4}
 Var Amanda, Final:Byte ;
@@ -90,9 +110,11 @@ Begin
 				Keys[ i ] := KeyDefaults[ i ] ;
       Event := NoAction ;
       CurrentTick := 0 ;
-      NewBlob( Who ) ;
-      NewBlob( Who ) ;  {Do twice, once for current, once for next}
+      RockCount := 0 ;
     end ;
+  ScoreManager( Alter, Who, 0 ) ;
+  NewBlob( Who ) ;
+	NewBlob( Who ) ;  {Do twice, once for current, once for next}
 end ;
 
 
@@ -144,24 +166,35 @@ Var Count, i, nx, ny:Byte ;
 Begin
 	PuyoCheck[ PuyoNum ][ x, y ] := True ;
   Count := 1 ;
-  nx := x ; ny := y ;
-  For i := 1 to 2 do
+	If PuyoColor <> Rock then
   	Begin
-    	If i = 1 then Inc( nx )
-      else Dec( nx, i ) ;
-		  If ( nx <= 6 ) and ( nx >= 1 ) and
-				( Player[ CurrentPlayer ].Board[nx,y] = PuyoColor ) and
-				( PuyoCheck[ PuyoNum ][ nx, y ]=False ) then
-					Inc( Count, CheckForPuyo( PuyoNum, nx, y, PuyoColor ) ) ;
-    end ;
-  For i := 1 to 2 do
-  	Begin
-    	If i = 1 then Inc( ny )
-      else Dec( ny, i ) ;
-      If ( ny >= 1 ) and ( ny <= MaxColumns ) and
-      	( Player[ CurrentPlayer ].Board[x,ny] = PuyoColor ) and
-        ( PuyoCheck[ PuyoNum ][ x, ny ] = False ) then
-					Inc( Count, CheckForPuyo( PuyoNum, x, ny, PuyoColor ) ) ;
+		  nx := x ; ny := y ;
+		  For i := 1 to 2 do
+  			Begin
+		    	If i = 1 then Inc( nx )
+    		  else Dec( nx, i ) ;
+				  If (nx<=6) and (nx>=1) and (PuyoCheck[PuyoNum][nx,y]=False) then
+						If ( Player[ CurrentPlayer ].Board[nx,y] = PuyoColor ) then
+							Inc( Count, CheckForPuyo( PuyoNum, nx, y, PuyoColor ) )
+            else
+            	If (Player[CurrentPlayer].Board[nx,y]=Rock) then
+              	Begin
+                	PuyoCheck[ PuyoNum ][ nx, y ] := True ;
+                end ;
+		    end ;
+  		For i := 1 to 2 do
+		  	Begin
+    			If i = 1 then Inc( ny )
+		      else Dec( ny, i ) ;
+    		  If (ny>=1) and (ny<=MaxColumns) and (Not PuyoCheck[PuyoNum][x,ny]) then
+		      	If ( Player[ CurrentPlayer ].Board[x,ny] = PuyoColor ) then
+							Inc( Count, CheckForPuyo( PuyoNum, x, ny, PuyoColor ) )
+            else
+            	If Player[CurrentPlayer].Board[x,ny]=Rock then
+              	Begin
+                	PuyoCheck[ PuyoNum ][ x, ny ] := True ;
+                end ;
+    		end ;
     end ;
   CheckForPuyo := Count ;
 end ; {CheckForPuyo}
@@ -338,20 +371,26 @@ Begin
           	For i := 1 to 6 do
             	With Player[ CurrentPlayer ] do
             		Begin
-									If ColumnCheck[ i ] then
-                  	For j := 1 to ColumnHeight( Player[ CurrentPlayer ],i ) do
+						 {		If ColumnCheck[ i ] then
+Checks ev. col.}  	For j := 1 to ColumnHeight( Player[ CurrentPlayer ],i ) do
                     	If Not KillCheckList[ i, j ] then
                         Begin
                       		InitCheck( 1 ) ;
                           PuyoSize[ 1 ]:=CheckForPuyo( 1, i, j, Board[i,j] ) ;
                           If PuyoSize[ 1 ] > 3 then
-                        		For a := 1 to 6 do
-                            	For b := 1 to MaxColumns do
-                              	If PuyoCheck[ 1 ][ a, b ] then
-                                  Begin
-                                  	ta[ a ] := True ;
-																		KillCheckList[ a, b ] := True ;
-                                  end ;
+                            Begin
+                            	Inc( Player[OtherGuy].RockCount, 10 ) ;
+                              ScoreManager( Increase, Player[CurrentPlayer], 500 ) ;
+                              GotoXY( 25*CurrentPlayer, 24 ) ;
+                              Write( Player[CurrentPlayer].Score ) ;
+                        			For a := 1 to 6 do
+                            		For b := 1 to MaxColumns do
+                              		If PuyoCheck[ 1 ][ a, b ] then
+                                  	Begin
+                                  		ta[ a ] := True ;
+																			KillCheckList[ a, b ] := True ;
+                                 		end ;
+                          	end ;
                         end ;
               	end ;
             For i := 1 to 6 do
@@ -362,6 +401,31 @@ Begin
         Lost:
         	Begin
           	Player[ CurrentPlayer ].Event := Quit ;
+          end ;
+
+        LayingRocks:
+        	Begin
+          	Done := True ;
+          	If Player[ CurrentPlayer ].RockCount > 9 then
+            	Begin
+              	Done := False ;
+              	For i:=1 to 6 do
+                	Player[ CurrentPlayer ].Board[ i, MaxColumns ] := Rock ;
+                Dec( Player[ CurrentPlayer ].RockCount, 10 ) ;
+              end
+            else
+            	If Player[ CurrentPlayer ].RockCount > 0 then
+	            	Begin
+                  Done := False ;
+  	            	Randomize ;
+    	          	i := Random( 6 ) + 1 ;
+      	          Dec( Player[ CurrentPlayer ].RockCount ) ;
+        	        Player[ CurrentPlayer ].Board[ i, MaxColumns ] := Rock ;
+          	    end ;
+            If Done then
+            	Player[ CurrentPlayer ].Event := NoAction
+            else
+	            Player[ CurrentPlayer ].Event := DroppingColumns ;
           end ;
 
         DroppingColumns:
@@ -431,7 +495,7 @@ Begin
               	If Not Done then
 									Player[ CurrentPlayer ].Event := DroppingColumns
                 else
-                	Player[ CurrentPlayer ].Event := NoAction ;
+                	Player[ CurrentPlayer ].Event := LayingRocks ;
               end ;
 		      end ;
 
@@ -442,7 +506,14 @@ Begin
 		          	Begin
                   InitCheck( i ) ;
 									PuyoSize[i] := CheckForPuyo( i, x[ i ], y[ i ], Col[ i ] );
-                	If PuyoSize[ i ] < 4 then InitCheck( i ) ;
+                	If PuyoSize[ i ] < 4 then InitCheck( i )
+                  else
+                  	Begin
+                    	Inc( Player[OtherGuy].RockCount ) ;
+                      ScoreManager( Increase, Player[CurrentPlayer], 100 ) ;
+                      GotoXY( 25*CurrentPlayer, 24 ) ;
+                      Write( Player[CurrentPlayer].Score ) ;
+                    end ;
                 end ;
             For i := 1 to 6 do ColumnCheck[ i ] := False ;
             For i := 1 to 6 do
