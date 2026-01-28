@@ -570,10 +570,10 @@ Procedure KillRec ;
 				ErrorWin( 'There are no records to delete.', '' ) ;
 				Exit ;
 			end ;
+		Rec := 0 ;
 		Repeat
 			Menu ;
 			DisplayRecWin( 'Delete Records' ) ;
-			Rec := 0 ;
 			Repeat
 				DisplayRecDim( Rec, True ) ;
 				GotoXY( 1, 1 ) ;
@@ -602,7 +602,7 @@ Procedure KillRec ;
 							ErrorWin( 'The record was deleted.', 'Delete Records' ) ;
 						end
 					else
-						Rec:=max+1 ;
+					  Dec( Rec ) ;
 				end ; {IF}
 		Until( ( Rec>=0 ) and ( Rec<=max ) ) or ( Ord( Choice ) = 27 ) ;
 	end ;
@@ -621,10 +621,10 @@ Procedure Ressurect ;
 				ErrorWin( 'There are no records to ressurect.', '' ) ;
 				Exit ;
 			end ;
-		Menu ;
-		DisplayRecWin( 'Records Available for Ressurection:' ) ;
 		Rec:=0 ;
 		Repeat
+  		Menu ;
+		  DisplayRecWin( 'Records Available for Ressurection:' ) ;
 			repeat
 				repeat
 					seek( figfile, rec ) ;
@@ -656,7 +656,7 @@ Procedure Ressurect ;
 							Choice:=#27 ;
 						end
 					else
-						rec:=0 ;
+						Dec( rec ) ;
 				end ; {IF}
 		Until ( Choice = #27 ) ;
 	end ; {Ressurection Proc}
@@ -701,10 +701,10 @@ Procedure Edit ;
 				ErrorWin( 'There are no records to edit.', '' ) ;
 				Exit ;
 			end ;
-		Menu ;
-		DisplayRecWin( 'Records Available to Edit:' ) ;
 		Rec:=0 ;
 		Repeat
+   		Menu ;
+		  DisplayRecWin( 'Records Available to Edit:' ) ;
 			repeat
 				repeat
 					seek( figfile, rec ) ;
@@ -746,86 +746,34 @@ Procedure Edit ;
 								Case pos of
 									1:begin
 											ReadChar( 32, 11+pos, 40, Fig.name ) ;
-											Hilite( 32, 11+pos, 2, 40 ) ;
+									    Fig.name:=Totalchar ;
 										end ;
 									3:begin
 											readchar( 32, 11+pos, 40, Fig.appearance ) ;
-											hilite( 32, 11+pos, 2, 40 ) ;
+											Fig.appearance:=Totalchar ;
 										end ;
 									2:begin
 											readint( 32, 13, 3, Fig.num ) ;
-											Hilite( 32, 13, 2, 3 ) ;
+											Fig.num:=totalint ;
 										end ;
 									4:begin
 											readint( 32, 15, 3, Fig.condition ) ;
-											Hilite( 32, 15, 2, 3 ) ;
+											Fig.condition:=totalint ;
 										end ;
 									5:begin
 											ReadChar( 32, 16, 5, Fig.Sideofforce ) ;
-											Hilite( 32, 16, 2, 5 ) ;
+										  Fig.sideofforce:=Totalchar ;
 										end ;
 								end ; {case}
 							end ; {IF}
-						Seek( figfile, rec ) ;
-						Write( Figfile, fig ) ;
 					until ( Choice = #27 ) ;
+          Reset( Figfile ) ;
+          seek( FigFile, Rec ) ;
+          Write( FigFile, Fig ) ;
 				end ;{IF}
 		until (Choice=#27 ) ;
 		textbackground( black ) ;
 	end ; {proc}
-
-{Procedure Edit ;
-
-var pick:char ;
-		n:integer ;
-
-begin
-	reset( figfile ) ;
-	Repeat
-		ClrScr ;
-		Writeln( 'What number record would you like to edit?' ) ;
-		Write( '(-1 for all, ',filesize(figfile)-1,' max.) ' ) ;
-		Readln( n ) ;
-		If (n<-1) or (N>=filesize(figfile)) then write( chr(7) ) ;
-	until( N>=-1 ) and (n<filesize( figfile )) ;
-	repeat
-		if n<>-1 then
-			begin
-				seek( figfile, n ) ;
-				Read( figfile, fig ) ;
-			end
-			else if filepos( figfile ) < filesize( figfile )
-						 then read( figfile, fig ) ;
-		ClrScr ;
-		Writeln( 'Record Number ', filepos( figfile ) -1 ) ;
-		Writeln( '1: ',fig.name ) ;
-		Writeln( '2: ',fig.num ) ;
-
-
-		Writeln( 'Which item do you want to change? ' ) ;
-		Readln( pick ) ;
-
-		Case pick of
-			'1': Readln( fig.name ) ;
-			'2': Readln( fig.num ) ;
-
-
-
-		Seek( figfile, filepos( figfile ) - 1 ) ;
-		Write( Figfile, fig ) ;
-
-		If n = -1 then
-			begin
-				Writeln( 'Would you like to edit another record? ' ) ;
-				Repeat
-					pick:=readkey ;
-					If ( upcase(pick) <> 'N' ) and ( upcase(pick) <> 'Y' ) then
-						Write( CHR(7) ) ;
-				Until( Upcase(pick) = 'N' ) or ( Upcase(pick) = 'Y' ) ;
-			end ;
-
-	Until( Upcase(pick)='N' ) or ( N<>-1 ) ;
-end ; {Edit Proc}
 
 Procedure Prefs ;
 
@@ -854,7 +802,7 @@ Procedure Prefs ;
 		Write( 'Sort Priorities' ) ;
 		For Hi:=1 to 3 do
 			begin
-				If Pref[hi]>4 then Pref[Hi]:=4 ;
+				If Pref[hi]>4 then Pref[Hi]:=0 ;
 				GotoXY( 30, 5+hi-1 ) ;
 				Case Pref[hi] of
 					0:Write( 'None          ' ) ;
