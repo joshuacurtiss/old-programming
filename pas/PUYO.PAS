@@ -8,9 +8,11 @@ Const Horiz = True ;        LeftKey   = 1 ;       	NoAction 					= 0 ;
       Rock = 5 ;            DropKey   = 4 ;         KillingPuyo				= 3 ;
       MaxColumns = 13 ;															DroppingColumns 	= 4 ;
       TickTime = 1 ;                                CheckingPuyoAgain = 5 ;
+                                                    Lost							= 8 ;
 																										Quit							= 9 ;
 
 			KeyDefaults:Array[ 1..4 ] of Char = ( '4', '6', '5', '0' ) ;
+      ExtraValidKeys:Set of Char = [ #27 ] ;
 
 Type 	Color = Byte ;
 
@@ -23,19 +25,20 @@ Type 	Color = Byte ;
 
 			Game = Record
       	Board:Array[ 1..6, 1..MaxColumns ] of Color ;
+		    KillCheckList:Array[ 1..6, 1..MaxColumns ] of Boolean ;
         Current:Blob ;
         Next:Blob ;
       	Keys:Array[ 1..4 ] of Char ;
-        Event:Byte ;
-        EventStep:Byte ;
+        Event, EventStep:Byte ;
+        CurrentTick, CurrentTime:Word ;
       end ;
 
 Var Player:Array[ 1..2 ] of Game ;
 		CurrentTick, CurrentTime:Word ;
     PuyoCheck:Array[ 1..2 ] of Array[ 1..6, 1..MaxColumns ] of Boolean ;
-    KillCheckList:Array[ 1..6, 1..MaxColumns ] of Boolean ;
     ColumnCheck:Array[ 1..6 ] of Boolean ;
     LastRandom, CurrentPlayer, NumOfPlayers:Byte ;
+    KeyBuffer:String ;
 
 
 Function RandomQuad:Byte ; {Spits out 1..4}
@@ -86,6 +89,7 @@ Begin
       For i := 1 to 4 do
 				Keys[ i ] := KeyDefaults[ i ] ;
       Event := NoAction ;
+      CurrentTick := 0 ;
       NewBlob( Who ) ;
       NewBlob( Who ) ;  {Do twice, once for current, once for next}
     end ;
@@ -105,11 +109,11 @@ Begin
 	      	t := Col[ 1 ] ;
 	        Col[ 1 ] := Col[ 2 ] ;
 	        Col[ 2 ] := t ;
-	      end ;
-			If Orientation = Horiz then Change := ( -1 )
+          Change := ( -1 ) ;
+	      end
       else Change := 1 ;		           { Toggle Between:             *     }
-      x[2] := x[2] + Change ;          {                  * *  and   *     }
-      y[2] := y[2] - Change ;
+      x[1] := x[1] + Change ;          {                  * *  and   *     }
+      y[1] := y[1] - Change ;
 	  	Orientation := Not Orientation ;
     end ;
 end ; {Rotate PROC}
@@ -132,7 +136,7 @@ Begin
       If Which <= 2 then
     		PuyoCheck[ Which ][ i, j ] := False
       else
-      	KillCheckList[ i, j ] := False ;
+      	Player[ CurrentPlayer ].KillCheckList[ i, j ] := False ;
 end ; {InitCheck}
 
 Function CheckForPuyo( PuyoNum, x, y, PuyoColor:Byte ):Byte ;
@@ -209,48 +213,99 @@ end ; {HandleTouchDown PROC}
 
 
 Procedure HandleKeyboard ;
-Var Key:Char ;
+
+Var ck:Char ;
 		q, i:Byte ;
+    GoodKeyFound:Boolean ;
+
 Begin
-	Key := Readkey ;
-  If Key = #0 then Key := Readkey ;
   q := 1 ;
-	While ( q<5 ) and ( Player[ CurrentPlayer ].Keys[ q ] <> Key ) do Inc( q ) ;
+  GoodKeyFound := False ;
+  Repeat
+    ck := Upcase( KeyBuffer[ q ] ) ;
+    For i := 1 to 4 do
+    	If Player[ CurrentPlayer ].Keys[ i ] = ck then GoodKeyFound := True ;
+  	Inc( q ) ;
+  Until GoodKeyFound or ( q > Length( KeyBuffer ) ) ;
+  If GoodKeyFound then Delete( KeyBuffer, q-1, 1 ) ; {q-1 cuz of Inc(q)}
+  q := 1 ;
+	While ( q<5 ) and ( Player[ CurrentPlayer ].Keys[ q ] <> ck ) do Inc( q ) ;
   If q<5 then
     With Player[ CurrentPlayer ] do
     	Begin
 				Case q of
   	  		LeftKey:   If ( Current.x[1]>1 ) and ( Current.y[1]>
-          						ColumnHeight( Player[CurrentPlayer],Current.x[1]-1))then
+          						ColumnHeight(Player[CurrentPlayer],Current.x[1]-1)) then
 												For i:=1 to 2 do Dec( Current.x[ i ] ) ;
     	   	RightKey:  If ( Current.x[2]<6 ) and ( Current.y[1]>
 											ColumnHeight( Player[CurrentPlayer],Current.x[2]+1))then
 												For i:=1 to 2 do Inc( Current.x[ i ] ) ;
       		DropKey:   Event := DroppingBlob ;
-	      	RotateKey: If NOT ( Current.y[1]>MaxColumns-1 ) and
-          						NOT ( ( Current.Orientation=Vert ) and ( ColumnHeight(
-											Player[CurrentPlayer],Current.x[1]+1 ) >= Current.y[1] ) ) then
-												Rotate( Current ) ;
+	      	RotateKey:
+          	If ( Current.Orientation=Horiz ) or
+	           	 (  ( Current.Orientation=Vert ) and ( Current.x[1]>1 ) and
+               		( Current.y[2] > ColumnHeight( Player[CurrentPlayer],
+               			Current.x[2]-1 ) )  )   then Rotate( Current ) ;
   	  	end ;
   		end
   else
-  	If Key = #27 then Player[ CurrentPlayer ].Event := Quit ;
+  	If ck = #27 then Player[ CurrentPlayer ].Event := Quit ;
 end ; {HandleKeyboard PROC}
 
 Procedure ErasePuyo ;
-Var i:Byte ;
+Var delta, i:Byte ;
 Begin
+	If CurrentPlayer = 1 then delta:=19
+  else delta:=59 ;
 	For i := 1 to 2 do
 		With Player[ CurrentPlayer ].Current do
-			WriteChar_A(19+x[i],23-y[i], ' ', Black ) ;
+			WriteChar_A(delta+x[i],23-y[i], ' ', Black ) ;
 end ;
 
 Procedure WritePuyo ;
-Var i:Byte ;
+Var i, delta:Byte ;
 Begin
+	If CurrentPlayer = 1 then delta:=19
+  else delta:=59 ;
 	For i := 1 to 2 do
   	With Player[ CurrentPlayer ].Current do
-			WriteChar_A(19+x[i],23-y[i], '*', Col[i] ) ;
+			WriteChar_A(delta+x[i],23-y[i], '*', Col[i] ) ;
+end ;
+
+Procedure AddToKeyboardBuffer ;
+
+Var Key:Char ;
+    i:Byte ;
+    GoodKey:Boolean ;
+
+Begin
+	Key := Readkey ;
+  If Key = #0 then Key := Readkey ;
+  GoodKey := False ;
+  For i := 1 to 8 do
+  	Begin
+			If ( ( i>4 ) and ( Player[2].Keys[i-4]=Upcase(Key) ) ) or
+         ( ( I<=4 ) and ( Player[1].Keys[i]=Upcase(Key) ) ) then
+         	 GoodKey := True ;
+    end ;
+  If GoodKey or ( Key in ExtraValidKeys ) then
+	  Insert( Key, KeyBuffer, Length( KeyBuffer )+1 ) ;
+end ; {AddToKeyboardBuffer}
+
+Function Dead:Boolean ;
+
+Var Good:Boolean ;
+		i:Byte ;
+
+Begin
+	i := 1 ;
+  Good := False ;
+  Repeat
+		If ColumnHeight( Player[ CurrentPlayer ], i ) >= MaxColumns then
+    	Good := True ;
+    Inc( i ) ;
+  Until ( i>6 ) or Good ;
+  Dead := Good ;
 end ;
 
 
@@ -259,19 +314,21 @@ Procedure Engine ; {Does One Cycle}
 Const FlashTime = 8 ;
 
 Var Time, Tick, Blah:Word ;
-    i, j, a, b:Byte ;
+    i, j, a, b, delta:Byte ;
     Done:Boolean ;
     PuyoSize:Array[ 1..2 ] of Byte ;
     WW:Char ;
     ta:Array[ 1..6 ] of Boolean ;
 
 Begin
+	If Keypressed then AddToKeyboardBuffer ;
+	If Dead then Player[ CurrentPlayer ].Event := Lost ;
 	GetTime( Blah, Blah, Time, Tick ) ;
-  If Tick < CurrentTick then Inc( Tick, 100 ) ;
-  If Tick > CurrentTick + TickTime then
+  If Tick < Player[ CurrentPlayer ].CurrentTick then Inc( Tick, 100 ) ;
+  If Tick > Player[ CurrentPlayer ].CurrentTick + TickTime then
     Begin
       If Tick > 99 then Dec( Tick, 100 ) ;
-    	CurrentTick := Tick ;
+    	Player[ CurrentPlayer ].CurrentTick := Tick ;
 			Case Player[ CurrentPlayer ].Event of
         CheckingPuyoAgain:
         	Begin
@@ -302,11 +359,18 @@ Begin
             Player[ CurrentPlayer ].Event := KillingPuyo ;
           end ;
 
+        Lost:
+        	Begin
+          	Player[ CurrentPlayer ].Event := Quit ;
+          end ;
+
         DroppingColumns:
         	Begin
           	Done := True ;
           	For i := 1 to 6 do
             	Begin
+								If CurrentPlayer = 1 then delta:=19
+  							else delta:=59 ;
               	Blah:=MaxColumns + 1 ;
                 Repeat
                 	Dec( Blah ) ;
@@ -323,10 +387,10 @@ Begin
                             1..4:WW:='*' ;
                             5:WW:='@';
                           end ;
-                          WriteChar_A(19+i,23-j, WW, Board[i,j] ) ;
+                          WriteChar_A(delta+i,23-j, WW, Board[i,j] ) ;
                       	end ;
                     Player[ CurrentPlayer ].Board[ i, Blah ] := Space ;
-                    WriteChar_A( 19+i, 23-Blah, ' ', Black ) ;
+                    WriteChar_A( delta+i, 23-Blah, ' ', Black ) ;
                   end ;
 						  end ;
             If Done then
@@ -339,6 +403,8 @@ Begin
 		    KillingPuyo:
 		    	Begin
           	Done := True ;
+						If CurrentPlayer = 1 then delta:=19
+					  else delta:=59 ;
             With Player[ CurrentPlayer ] do
             	Begin
                 Inc( EventStep ) ;
@@ -350,12 +416,12 @@ Begin
                 	For j := 1 to MaxColumns do
                   	If KillCheckList[ i, j ] then
                       Begin
-												Hilite( 19+i,23-j, Blah, 1 ) ;
+												Hilite( Delta+i,23-j, Blah, 1 ) ;
                         If EventStep > FlashTime then
                         	Begin
                           	Done := False ;
                       			Board[ i, j ] := Space ;
-                          	WriteChar_A(19+i,23-j, ' ', Black ) ;
+                          	WriteChar_A(delta+i,23-j, ' ', Black ) ;
                           end ;
                       end ;
               end ;
@@ -381,10 +447,11 @@ Begin
             For i := 1 to 6 do ColumnCheck[ i ] := False ;
             For i := 1 to 6 do
             	For j := 1 to MaxColumns do
-              	Begin
-             			KillCheckList[i,j]:=PuyoCheck[1][i,j] or PuyoCheck[2][i,j] ;
-                	If KillCheckList[i,j] then ColumnCheck[ i ] := True ;
-            		end ;
+              	With Player[ CurrentPlayer ] do
+              		Begin
+	             			KillCheckList[i,j]:=PuyoCheck[1][i,j] or PuyoCheck[2][i,j];
+	                	If KillCheckList[i,j] then ColumnCheck[ i ] := True ;
+	            		end ;
             Player[ CurrentPlayer ].EventStep := NoAction ;
          		Player[ CurrentPlayer ].Event := KillingPuyo
 		      end ; {End CheckingForPuyo Event}
@@ -398,17 +465,17 @@ Begin
 
 		    NoAction:
 		    	Begin
-					  If Time <> CurrentTime then
+					  If Time <> Player[ CurrentPlayer ].CurrentTime then
 		          Begin
 		          	ErasePuyo ;
-						   	With Player[ CurrentPlayer ].Current do
+						   	With Player[ CurrentPlayer ] do
 						    	Begin
 						      	CurrentTime := Time ;
-						        For i := 1 to 2 do Dec( y[ i ] ) ;
+						        For i := 1 to 2 do Dec( Current.y[ i ] ) ;
 			  			    end ;
 		            WritePuyo ;
 		        	end ;
-		  			If Keypressed then
+		  			If Length( KeyBuffer ) > 0 then
 							Begin
 		          	ErasePuyo ;
 								HandleKeyboard ;
@@ -424,11 +491,22 @@ Begin
 	ClrScr ;
 	InitWins ; {Text}
   WinUp( 19, 9, 26, 23 ) ;
+  WinUp( 59, 9, 66, 23 ) ;
+  KeyBuffer := '' ;
   CurrentTick := 1 ;
-	NumOfPlayers := 1 ;
+	NumOfPlayers := 2 ;
   CurrentPlayer := 1 ;
   InitPlayer( Player[ 1 ] ) ;
   InitPlayer( Player[ 2 ] ) ;
+
+  With Player[ 1 ] do
+  	Begin
+      Keys[ 1 ] := 'A' ;
+      Keys[ 2 ] := 'D' ;
+      Keys[ 3 ] := 'S' ;
+      Keys[ 4 ] := ' ' ;
+    end ;
+
   Repeat
   	Engine ;
     Inc( CurrentPlayer ) ;
