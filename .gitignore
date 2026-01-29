@@ -10,6 +10,7 @@
 /TPINST
 
 # Other Files to Ignore
+JCTEMP.REC
 TURBO.DSK
 *.$$$
 *.bak
@@ -19,6 +20,7 @@ TURBO.DSK
 *.log
 *.ms
 *.frk
+*.prf
 *.shk
 *.sit
 
