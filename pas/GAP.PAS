@@ -1,11 +1,11 @@
 
 Program GappaBabe ;
 
-uses crt, msgraph;
+uses crt, graph;
 
-Var	repcon, level, a, b, c, d, x, y, mx:INTEGER ;
-		my, md, omd, q, r, t, z, score, lives:INTEGER ;
+Var	a, b, c, d, x, y, mx, my, md, omd, q, r, t, z, score, lives:INTEGER ;
 	play, LastKey, Key, OldKey:CHAR ;
+	level:string[10];
 	CanYouPush, CursToggle, Win, Die, GapOn:Boolean ;
 	Board:array[ 10..70, 2..22 ] of Char ;
 	BoardCon:array[ 10..70, 2..22 ] of Boolean ;
@@ -25,9 +25,8 @@ Procedure ScoreManager( Funct, Differential:integer ) ;
 			2:score:=score-differential; {Stealer}
 			3:
 				Begin
-					GotoXY( 35, 24 ) ;
-					Write( 'Score: ', Score,'     Lives: ',lives-1,
-						'     Level: ', Level ) ;
+					GotoXY( 45, 24 ) ;
+					Write(level, '  Score: ', Score,'  Lives: ',lives-1 ) ;
 				end; {Function 3}
 		end ; {Case}
 	end; {Proc}
@@ -35,31 +34,31 @@ Procedure ScoreManager( Funct, Differential:integer ) ;
 
 Procedure CheckLine( BoxNum, a, b, c, d:INTEGER ) ;
 	Begin
-		RepCon:=A;
-		BoxDone[BoxNum]:=TRUE ;
-		While( (Repcon<=b) and (BoxDone[BoxNum]=true) ) do
+		BoxDone[ BoxNum ]:=TRUE ;
+		For Q:= a to b do
 			Begin
-				If (BoardCon[RepCon, c] = FALSE)
-					then BoxDone[BoxNum]:=False ;
-				If (BoardCon[RepCon, d])=FALSE
-					then BoxDone[BoxNum]:=False ;
-				Inc( RepCon ) ;
-			end ; {while}
-		RepCon:=C+1 ;
-		While ( (Repcon<=(d-1)) and (BoxDone[BoxNum]=TRUE)) do
+				If BoardCon[ Q, c ] = False then
+					BoxDone[ BoxNum ]:=False ;
+				If BoardCon[ Q, d ] = False then
+					BoxDone[ BoxNum ]:=False ;
+			End ; {FOR}
+		If BoxDone[ BoxNum ] = TRUE then
 			Begin
-				If (BoardCon[a, repcon] = FALSE)
-					then BoxDone[BoxNum]:=False ;
-				If (BoardCon[b,repcon])=FALSE
-					then BoxDone[BoxNum]:=False ;
-				Inc( RepCon ) ;
-			end ; {while}
-		If BoxDone[BoxNum] = TRUE then
+				For Q:= (C+1) to (d-1) do
+					Begin
+						If BoardCon[ a, Q ]=False then
+							BoxDone[ BoxNum ]:=False ;
+						If BoardCon[ b, Q ]=False then
+							BoxDone[ BoxNum ]:=False ;
+					End ; {FOR}
+			End ; {IF}
+		If BoxDone[ BoxNum ] = TRUE then
 			Begin
 				TempHiLiteBox( a, b, c, d, 50 ) ;
-				ScoreManager(1, 50) ;
-			end ; {da if}
-	end ; {Proc}
+				ScoreManager( 1, 50 ) ;
+			End ; {IF}
+	End ; {Proc}
+
 
 Procedure FindKey ;
 	Begin
@@ -82,7 +81,7 @@ Procedure FindKey ;
 
 Procedure Init ;
 	Begin
-		CursToggle:=_displayCursor( false ) ;
+		{CursToggle:=_displayCursor( false ) ;}
 		For Q:=10 to 70 do
 			Begin
 				For R:=2 to 22 do
@@ -289,11 +288,17 @@ Begin
 	TextBackground( BLACK ) ;
 	TextColor( WHITE ) ;
 	Z:=5;
-	Level:=1 ;
 	lives:=4;
 	Repeat
 		ClrScr ;
 		Init ;
+		case z of
+			5:level:='Level 1';
+			4:level:='Level 2';
+			3:level:='Level 3';
+			2:level:='Level 4';
+			1:level:='Level 5';
+		end; {case}
 		Repeat
 			FindKey ;
 			EraseOld( x, y ) ;
@@ -330,11 +335,7 @@ Begin
 				writeln;
 				writeln ('Do you want to play the next level?');
 				play:=readkey;
-				if z>0 then
-					begin
-						Inc(Level) ;
-						dec(z);
-					end; {IF}
+				if z>0 then dec(z);
 				until (upcase(play)='N') or (upcase(play)='Y');
 			End; {if}
 	until upcase(play)='N';
