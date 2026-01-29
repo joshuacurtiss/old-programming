@@ -1,23 +1,21 @@
 Program FindDaPrime ;
 
-Uses CRT, DOS, Joshmohn ;
+Uses CRT, IncUnit, Joshmohn ;
 
-Const ListMax = 3720 ;
+Const ListMax = 100 ;
 			StartingNumber = '2' ;
       HowLong = 50 ;
-      BadList:Set of Char = [ '2', '4', '5', '6', '8', '0' ] ;
 
-Type 	JoshNumber 	= String[ 10 ] ;
+Type 	JoshNumber 	= String ;
       NumType     = LongInt ;
 
-Var n, Largest:JoshNumber ;
+Var n:JoshNumber ;
 		List:Array[ 1..20 ] of JoshNumber ;
     ListPos:Byte ;
+    Largest:JoshNumber ;
     PrimeList:Array[ 1..ListMax ] of JoshNumber ;
     Key:Char ;
-    ShowGreen, WantsToggle, UseDatabase, TimeToQuit, d, s:Boolean ;
-    Hour, Min, Sec, Bullz:Word ;
-    PrimeFile:File of LongInt ;
+    WantsToggle, UseDatabase, TimeToQuit, d, s:Boolean ;
 
 
 Function Half( Something:NumType ):NumType ;
@@ -133,36 +131,17 @@ Begin
 end ; {AddToList PROC}
 
 
-Procedure IncNum( var Who:JoshNumber ); {Not the right way, but good for now}
-
-Var Code:Integer ;
-		d:NumType ;
-
-Begin
-	Val( Who, d, code ) ;
-  If Code <> 0 then Beep ;
-  Inc( d ) ;
-  Str( d, Who ) ;
-end ; {IncNum PROC}
-
 Procedure CheckKeyboard ;
 
 Begin
  	If Keypressed then
    	Begin
      	Key := Readkey ;
-      If Key = #0 then
-				Begin
-					Key := Readkey ;
-		      If Key = Esc then TimeToQuit := True ;
-        end ;
-      Case Upcase( Key ) of
-      	'X': TimeToQuit := True ;
-	      ' ': Repeat Until Keypressed ;
-	      'D': D:=Not D ;
-	    	'S': WantsToggle:=True ;
-	    	'P': ShowGreen := Not ShowGreen ;
-    	end ;{CASE}
+      If Key = #0 then Key := Readkey ;
+      If Key = Esc then TimeToQuit := True ;
+      If Key = ' ' then Repeat Until Keypressed ;
+      If Upcase( Key ) = 'D' then D:=Not D ;
+    	If Upcase( Key ) = 'S' then WantsToggle:=True ;
     end ;
 end ;
 
@@ -170,26 +149,16 @@ Procedure InitProgram ;
 
 Begin
   InitWins ;
-  Assign( PrimeFile, 'C:\PRIME\Primes.LST' ) ;
-  {$I-}
-  	Reset( PrimeFile ) ;
-    Close( PrimeFile ) ;
-  {$I+}
-  UseDatabase := ( IOResult = 0 ) ;
   WinUp( 1, 1, 80, 25 ) ;
 	ClrScr ;
   WriteStr( 1, 1, 'Use Prime Number Database?' ) ;
   Key := Readkey ;
   If Upcase( Key ) = 'Y' then UseDatabase := True
   else UseDatabase := False ;
-  WriteStr( 1, 3, 'Long Delays?' ) ;
-  Key := Readkey ;
-  If Upcase( Key ) = 'Y' then D:=True
-  else D:=False ;
   ClrScr ;
   ListPos := 4 ;
+  D:=False ;
   S:=True ;
-  ShowGreen := True ;
   WantsToggle:=False ;
   TimeToQuit := False ;
   n := StartingNumber ;
@@ -204,7 +173,7 @@ Function Remainder( Num, Divider:JoshNumber ):JoshNumber ;
 																												{Not done properly}
 Var Kirk, Spock:NumType ;                                     {.......yet!!!}
 
-Begin
+Begin                                                         
 	Kirk:=Value( Num ) ;
   Spock:=Value( Divider ) ;
   Remainder := StrEquiv( Kirk Mod Spock ) ;
@@ -213,17 +182,17 @@ end ; {Remainder FUNCTION}
 Function ItPassedTheFitnessTest:Boolean ;
 
 Var Failed:Boolean ;
-		Single:Char ;
+		Single:Byte ;
     q:NumType ;
-    Lama:Byte ;
 
 Begin
 	Failed := False ;
-  Single := n[ Length( n ) ] ;
-  If Single in BadList then Failed := True ;
+  Single := Value( n[ Length( n ) ] ) ;
+  If ( Single = 0 ) or ( Single = 5 ) then Failed := True ;
+  If Single Mod 2 = 0 then Failed := True ;
   Q := 0 ;
-	For Lama := 1 to Length( n ) do
-	 	Inc( q, Value( n[ Lama ] ) ) ;
+	For Single := 1 to Length( n ) do
+	 	Inc( q, Value( n[ Single ] ) ) ;
 	If q mod 3 = 0 then Failed := True ;
   ItPassedTheFitnessTest := Not Failed ;
 end ; {ItPassedTheFitnessTest FUNCT}
@@ -262,7 +231,7 @@ Begin
 							If Amanda = '0' then
               	Begin
 			          	StillPrime := False ;
-                  If S and ShowGreen then
+                  If S then
                   	Begin
                       HiLite( 2, 12, Green, 38 ) ;
                       ChillOut( HowLong*3 ) ;
@@ -287,8 +256,6 @@ Begin
           Repeat
             CheckKeyboard ;
           	IncNum( i ) ;
-            If Value( i ) > 15 then
-	            While i[ Length(i) ] in Badlist do IncNum( i ) ;
             Amanda := Remainder( n, i ) ;
             If S then
             	Begin
@@ -297,10 +264,10 @@ Begin
             	end ;
             If Amanda = '0' then
               Begin
-	            	If S and ShowGreen then
+	            	If S then
 									Begin
 										HiLite( 2, 24, Green, 38 ) ;
-                 	 	Chillout( HowLong*3 ) ;
+                    Chillout( HowLong*3 ) ;
                   end ;
   	          	StillPrime := False ;
               end ;
@@ -318,7 +285,6 @@ end ;
 
 Begin
 	InitProgram ;
-  GetTime( Hour, Min, Sec, Bullz ) ;
   Repeat
   	MakePass ;
   	CheckKeyboard ;
@@ -332,10 +298,6 @@ Begin
   Until ( Value( n ) > 2147483640 ) or TimeToQuit ;
 	CloseAllWins ;
 	ClrScr ;
-  Writeln( 'Started at ',Hour,':',min,':',sec,'.' ) ;
-  GetTime( Hour, min, sec, bullz ) ;
-  Writeln( 'Finished at ',Hour,':',min,':',sec,'.' ) ;
-  Writeln ;
   Writeln( 'Largest Prime Found: ', Largest, '.' ) ;
   Writeln ;
 end.
