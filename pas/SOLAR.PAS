@@ -27,6 +27,27 @@ Var	FigSize, Max, TotalInt, Rec, I, ProcINT, Howdy, Hi:integer;
 		cursor, sure:boolean ;
 		Choice, ProcChar:char ;
 
+Procedure HelpWin( MessageOne, MessageTwo, MessageThree:STRING ) ;
+	begin
+		GotoXY( 1, 19 ) ;
+		Write( '旼컴컴컴컴컴컴컴컴컴컴컴컴컴커' ) ;
+		GotoXY( 1, 25 ) ;
+		Write( '읕컴컴컴컴컴컴컴컴컴컴컴컴컴켸' ) ;
+		For Hi:=20 to 24 do
+			begin
+				GotoXY( 1, hi ) ;
+				Write( '�                            �' ) ;
+			end ;
+		GotoXY( 13, 20 ) ;
+		Write( 'Help' ) ;
+		GotoXY( 3, 22 ) ;
+		Write( MessageOne ) ;
+		GotoXY( 3, 23 ) ;
+		Write( MessageTwo ) ;
+		Gotoxy( 3, 24 ) ;
+		Write( MessageThree ) ;
+	end ; {HelpWin Proc}
+
 Procedure SavePref( by1, by2, by3:byte ) ;
 
 	begin
@@ -41,13 +62,13 @@ Procedure GetPref( By1, by2, by3:byte ) ;
 
 	begin
 		Reset( prefFile ) ;
-    If Filesize( PrefFile ) > 0 then
-      begin
-        Reset( Preffile ) ;
-		    Read( prefFile, by1 ) ;  {Load up prefs}
-		    Read( prefFile, by2 ) ;
-		    Read( prefFile, by3 ) ;
-      end ;
+		If Filesize( PrefFile ) > 0 then
+			begin
+				Reset( Preffile ) ;
+				Read( prefFile, by1 ) ;  {Load up prefs}
+				Read( prefFile, by2 ) ;
+				Read( prefFile, by3 ) ;
+			end ;
 		Close( prefFile ) ;
 	end ;
 
@@ -135,14 +156,14 @@ Procedure Menu ;
 		GotoXY( howdy, hi+6 ) ;
 		Write( '4. Display an Action Figure' ) ;
 		GotoXY( howdy, hi+8 ) ;
-    Write( '5. Ressurect a Deleted Figure' ) ;
-    GotoXY( howdy, hi+10 ) ;
-    Write( '6. Sort Action Figures' ) ;
-    Gotoxy( howdy, hi+12 ) ;
-    Write( '7. Configure Sort Priorities' ) ;
-    GotoXY( howdy, hi+14 ) ;
-    Write( '8. Purge Deleted Figures' ) ;
-    GotoXY( howdy, hi+16 ) ;
+		Write( '5. Ressurect a Deleted Figure' ) ;
+		GotoXY( howdy, hi+10 ) ;
+		Write( '6. Sort Action Figures' ) ;
+		Gotoxy( howdy, hi+12 ) ;
+		Write( '7. Configure Sort Priorities' ) ;
+		GotoXY( howdy, hi+14 ) ;
+		Write( '8. Purge Deleted Figures' ) ;
+		GotoXY( howdy, hi+16 ) ;
 		Write( 'Q. Quit ' ) ;
 	end  ;
 
@@ -264,8 +285,8 @@ Procedure ClearRecWin ;
 				end ;
 	end ;
 
-Procedure RecWin ;    
-	Begin               
+Procedure RecWin ;
+	Begin
 		GotoXY( 5, 10 ) ;
 		Writeln( '旼컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴커' ) ;
 		For Howdy:=11 to 16 do
@@ -298,6 +319,9 @@ Procedure SureWin ;          {An 'Are You sure?' Window}
 		Write( 'No' ) ;
 		GotoXY( 57, 20 ) ;
 		Write( 'Yes' ) ;
+		HelpWin( 'Use the left and right',
+						 'arrow keys to switch. Push',
+						 'return to continue.' ) ;
 		Repeat
 			If Sure = FALSE then       {Hilight 'No'}
 				Hilite( 66, 20, 1, 5 )
@@ -422,7 +446,7 @@ Procedure Sort( By1, By2, By3:Integer ) ;
 								Seek( Figfile, D ) ;
 								Read( Figfile, Rec2 ) ;
 								E:=comp( Rec1, Rec2, By1 ) ; {Read and compare next ones down}
-							end                                                  
+							end
 						else E:=0 ;  {Leave it alone}
 					end ;
 				If Comp( Rec1, Rec2, by1 ) = 2 then
@@ -471,6 +495,9 @@ Procedure ViewRecs ;
 		Max := Filesize( FigFile ) - 1 ;
 		Menu ;
 		DisplayRecWin( 'View Records' ) ;  {Make window}
+		HelpWin( 'Arrow keys move 1 Record.',
+						 'Page keys move 10 Records.',
+						 'Return or ESC to go back.' ) ;
 		Rec := 0 ;        {Start at first rec}
 		Repeat
 			Repeat
@@ -532,6 +559,9 @@ Procedure Add ;
 				Read( Figfile, Fig ) ;     {Goto last position unless none exists.}
 			end ; {IF}
 		DisplayRecWin( 'Add Records:' ) ; {Make window}
+		HelpWin( 'Type entry in allowed',
+						 'space. Press return to ',
+						 'advance to next category.' ) ;
 		With Fig do
 			begin
 				Hilite( 32, 12, 1, 40 ) ;
@@ -578,6 +608,9 @@ Procedure KillRec ;
 		Repeat
 			Menu ;
 			DisplayRecWin( 'Delete Records' ) ; {Rewrite all wins}
+			HelpWin( 'Arrows move one record.',
+							 'Page keys move 10 records.',
+							 'D:Delete.    ESC:Exit' ) ;
 			Repeat
 				DisplayRecDim( Rec, True ) ;      {display categories}
 				GotoXY( 1, 1 ) ;
@@ -593,7 +626,7 @@ Procedure KillRec ;
 						end ; {CASE}
 					end ;
 			Until ( Upcase( Choice ) = 'D' ) or ( Choice = #27 );
-                   {'D' Deletes, ESC exits}
+									 {'D' Deletes, ESC exits}
 			If Upcase( Choice ) = 'D' then
 				begin
 					SureWin ;
@@ -606,7 +639,7 @@ Procedure KillRec ;
 							ErrorWin( 'The record was deleted.', 'Delete Records' ) ;
 						end
 					else
-					  Dec( Rec ) ;    {Will then go to same rec}
+						Dec( Rec ) ;    {Will then go to same rec}
 				end ; {IF}
 		Until( ( Rec>=0 ) and ( Rec<=max ) ) or ( Ord( Choice ) = 27 ) ;
 	end ;
@@ -627,8 +660,11 @@ Procedure Ressurect ;
 			end ;
 		Rec:=0 ;
 		Repeat
-  		Menu ;
-		  DisplayRecWin( 'Records Available for Ressurection:' ) ; {Make Win}
+			Menu ;
+			DisplayRecWin( 'Records Available for Ressurection:' ) ; {Make Win}
+			HelpWin( 'Arrows move 1 record.',
+							 'Page keys move 10 records.',
+							 'R:Ressurect  ESC:Exit' ) ;
 			repeat
 				repeat
 					seek( figfile, rec ) ;
@@ -707,8 +743,11 @@ Procedure Edit ;          {A TOUGH Proc!}
 			end ;
 		Rec:=0 ;
 		Repeat
-   		Menu ;
-		  DisplayRecWin( 'Records Available to Edit:' ) ; {Make Win}
+			Menu ;
+			DisplayRecWin( 'Records Available to Edit:' ) ; {Make Win}
+			HelpWin( 'Arrows move 1 record.',
+							 'Page keys move 10 records.',
+							 'E:Edit       ESC:Exit ' ) ;
 			repeat
 				repeat
 					seek( figfile, rec ) ;
@@ -731,6 +770,11 @@ Procedure Edit ;          {A TOUGH Proc!}
 				begin
 					pos:=1 ;
 					Repeat
+						Textbackground( Black ) ;
+						HelpWin( 'Up and down arrows maneuver',
+										 'through categories. Press',
+										 'enter to select.   ESC:Exit' ) ;
+						Textbackground( Blue ) ;
 						Choice:=Readkey ;
 						If choice=#0 then choice:=readkey ;
 						If (choice=downarrow) and (Pos<5) then
@@ -747,48 +791,53 @@ Procedure Edit ;          {A TOUGH Proc!}
 							end ;
 						If Ord( choice ) = 13 then     {Once dim is chosen (CR)...}
 							begin
+								TextBackground( Black ) ;
+								HelpWin( 'Edit or Type the text you',
+												 'wish to change. Press',
+												 'enter when done.' ) ;
+								Textbackground( blue ) ;
 								Case pos of     {Minor difs between each pos...}
 									1:begin
-                      For a:=1 to 40 do Mem[ $B800:( (10+pos)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
-                      TextBackground( Magenta ) ;   {Hilite red}
+											For a:=1 to 40 do Mem[ $B800:( (10+pos)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
+											TextBackground( Magenta ) ;   {Hilite red}
 											ReadChar( 32, 11+pos, 40, Fig.name ) ;{edit name}
-                      Hilite( 32, 11+pos, 1, 40 ) ; {Hilite blue again}
-									    Fig.name:=Totalchar ;   {Insert new edited val}
+											Hilite( 32, 11+pos, 1, 40 ) ; {Hilite blue again}
+											Fig.name:=Totalchar ;   {Insert new edited val}
 										end ;
 									3:begin
-                      For a:=1 to 40 do Mem[ $B800:( (10+pos)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
-                      TextBackground( Magenta ) ; {Hilite red}
+											For a:=1 to 40 do Mem[ $B800:( (10+pos)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
+											TextBackground( Magenta ) ; {Hilite red}
 											readchar( 32, 11+pos, 40, Fig.appearance ) ;{edit name}
-                      Hilite( 32, 11+pos, 1, 40 ) ; {Hilite blue again}
+											Hilite( 32, 11+pos, 1, 40 ) ; {Hilite blue again}
 											Fig.appearance:=Totalchar ;  {Insert new edited val}
 										end ;
 									2:begin
-                      For a:=1 to 3 do Mem[ $B800:( (12)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
-                      TextBackground( Magenta ) ;
+											For a:=1 to 3 do Mem[ $B800:( (12)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
+											TextBackground( Magenta ) ;
 											readint( 32, 13, 3, Fig.num ) ; {Edit number}
 											Hilite( 32, 13, 1, 3 ) ;
-                      Fig.num:=totalint ;
+											Fig.num:=totalint ;
 										end ;
 									4:begin
-                      For a:=1 to 3 do Mem[ $B800:( (14)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
-                      TextBackground( Magenta ) ;
+											For a:=1 to 3 do Mem[ $B800:( (14)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
+											TextBackground( Magenta ) ;
 											readint( 32, 15, 3, Fig.condition ) ; {Edit condition}
-                      Hilite( 32, 15, 1, 3 ) ;
+											Hilite( 32, 15, 1, 3 ) ;
 											Fig.condition:=totalint ;
 										end ;
 									5:begin
-                      For a:=1 to 5 do Mem[ $B800:( (15)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
-                      TextBackground( Magenta ) ;
+											For a:=1 to 5 do Mem[ $B800:( (15)*80+32+a-2 )*2+1 ]:=Magenta*16+White ;
+											TextBackground( Magenta ) ;
 											ReadChar( 32, 16, 5, Fig.Sideofforce ) ; {Edit side}
-                      Hilite( 32, 16, 1, 5 ) ;
-										  Fig.sideofforce:=Totalchar ;
+											Hilite( 32, 16, 1, 5 ) ;
+											Fig.sideofforce:=Totalchar ;
 										end ;
 								end ; {case}
 							end ; {IF}
 					until ( Choice = #27 ) ;  {Escape when done with rec}
-          Reset( Figfile ) ;
-          seek( FigFile, Rec ) ;
-          Write( FigFile, Fig ) ;    {save it}
+					Reset( Figfile ) ;
+					seek( FigFile, Rec ) ;
+					Write( FigFile, Fig ) ;    {save it}
 				end ;{IF}
 		until (Choice=#27 ) ;
 		textbackground( black ) ;    {back to normal}
@@ -831,7 +880,9 @@ Procedure Prefs ;    {Pref Changes}
 					4:Write( 'Condition     ' ) ;
 				end ; {Writing Case}
 			end ; {For}
-
+		HelpWin( 'Up & Down to switch among',
+						 'Priorities. Right & Left to',
+						 'change category.  ESC:Exit' ) ;
 		While Key<>#27 do   {ESC exits}
 			begin             {For once, I tried a while do instead of repeat until}
 
@@ -880,7 +931,12 @@ Procedure Prefs ;    {Pref Changes}
 begin
 	{Cursor:= _displaycursor( false );} {Can't see cursor}
 	textbackground( black ) ;
+	TextColor( red ) ;
+	ClrScr ;
+	GotoXY( 28, 12 ) ;
+	Write( 'S O L A R   B A S E   v5' ) ;
 	TextColor( white ) ;
+	Choice:=readkey ;
 	Assign( PrefFile, 'c:\Solar.PRF' ) ; {Prefs}
 	Assign( FigFile, 'c:\JCFigs.rec' ) ; {Recs}
 	{$I-}
@@ -914,15 +970,15 @@ begin
 						end ; {Sort MiniRoutine}
 			'5': Ressurect ;   {Ressurect recs}
 			'7': Prefs ;       {Go to Soring Preferences window}
-      '9', '0': ErrorWin( 'Thanks to the Founder of the Oasis of Joy!', '' );
-      'Q', 'q':begin                                       {Uh, You're Not }
-                 SureWin ; {Do they mean it?}              {Supposed to see}
-                 If Sure=False then Choice:='a'            {this Goose-egg }
-                 else Choice:='Q' ;   {If truly do, quit.}
-               end ; {IF}
+			'9', '0': ErrorWin( 'Thanks to the Founder of the Oasis of Joy!', '' );
+			'Q', 'q':begin                                       {Uh, You're Not }
+								 SureWin ; {Do they mean it?}              {Supposed to see}
+								 If Sure=False then Choice:='a'            {this Goose-egg }
+								 else Choice:='Q' ;   {If truly do, quit.}
+							 end ; {IF}
 		end ; {case}
 	Until ( UPCASE( Choice ) = 'Q' ) ; {If the user is suicidal, this}
-                                                          {will happen.}
+																													{will happen.}
 	{Notes:														 	  	}
 	{   Seek( Filename, Position ) ;      	}
 	{   Seek( CardsFile, 0 ) ;					  	}
